@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -56,7 +56,7 @@ func NewServer(daemon *daemon.Daemon, modemAddr, authUser, authPass, apiKey stri
 func (s *Server) Start(port string) error {
 	mux := http.NewServeMux()
 	s.routes(mux)
-	log.Printf("Starting web control panel on http://localhost:%s", port)
+	slog.Info("Starting web control panel", "url", "http://localhost:"+port)
 	
 	server := &http.Server{
 		Addr:         ":" + port,
@@ -213,14 +213,14 @@ func (s *Server) renderTemplate(w http.ResponseWriter, status int, name string, 
 	var buf bytes.Buffer
 	err := tmpl.ExecuteTemplate(&buf, name, data)
 	if err != nil {
-		log.Printf("Template render error (%s): %v", name, err)
+		slog.Error("Template render error", "template", name, "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if _, err := buf.WriteTo(w); err != nil {
-		log.Printf("Socket write error (%s): %v", name, err)
+		slog.Debug("Socket write error", "template", name, "error", err)
 	}
 }
 
@@ -410,7 +410,7 @@ func (s *Server) handleDebug(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleModemRestart(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received request to restart modem. Sending AT+CFUN=1,1...")
+	slog.Info("Received request to restart modem, sending AT+CFUN=1,1")
 	_, err := s.daemon.SendCommand("AT+CFUN=1,1")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Restart failed: %v", err), http.StatusInternalServerError)
@@ -440,7 +440,7 @@ func (s *Server) handleDeleteSMS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Received request to delete SMS index %d...", index)
+	slog.Info("Received request to delete SMS", "index", index)
 	err = s.daemon.DeleteSMS(index)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Delete failed: %v", err), http.StatusInternalServerError)

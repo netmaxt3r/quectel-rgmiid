@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"strings"
 	"sync"
@@ -82,10 +82,10 @@ func (c *Client) reconnectLoop(ctx context.Context) {
 		default:
 		}
 
-		log.Printf("Connecting to modem at %s...", c.addr)
+		slog.Info("Connecting to modem", "address", c.addr)
 		conn, err := net.DialTimeout("tcp", c.addr, 5*time.Second)
 		if err != nil {
-			log.Printf("Modem connection failed: %v. Retrying in 3 seconds...", err)
+			slog.Error("Modem connection failed", "error", err, "retry_after", "3s")
 			select {
 			case <-ctx.Done():
 				return
@@ -94,7 +94,7 @@ func (c *Client) reconnectLoop(ctx context.Context) {
 			}
 		}
 
-		log.Printf("TCP socket established with modem at %s", c.addr)
+		slog.Info("TCP socket established with modem", "address", c.addr)
 		session := NewSession(conn)
 		
 		c.mu.Lock()
@@ -116,7 +116,7 @@ func (c *Client) reconnectLoop(ctx context.Context) {
 		}
 		c.mu.Unlock()
 
-		log.Println("Connection to modem lost. Initiating reconnect...")
+		slog.Warn("Connection to modem lost; initiating reconnect")
 	}
 }
 
@@ -175,7 +175,7 @@ func (c *Client) readerLoop(s *Session) {
 					case c.urcChan <- payloadStr:
 					default:
 					}
-					log.Printf("[Modem URC] %s", strings.TrimSpace(payloadStr))
+					slog.Info("Modem URC received", "payload", strings.TrimSpace(payloadStr))
 				} else {
 					// Route command response frames
 					select {

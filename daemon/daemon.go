@@ -3,7 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"maps"
 	"net"
 	"strings"
@@ -143,7 +143,7 @@ func (d *Daemon) Start(ctx context.Context) {
 	// Start the client reconnect loop
 	d.client.Start(ctx)
 
-	log.Printf("Starting background stats polling every %s", d.pollInterval)
+	slog.Info("Starting background stats polling", "interval", d.pollInterval)
 	
 	// Initial poll
 	d.PollAll()
@@ -154,7 +154,7 @@ func (d *Daemon) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Stopping stats polling...")
+			slog.Info("Stopping stats polling")
 			return
 		case <-ticker.C:
 			d.PollAll()
@@ -212,7 +212,7 @@ func (d *Daemon) PollAll() {
 	for _, item := range cmds {
 		resp, err := d.SendCommand(item.cmd)
 		if err != nil {
-			log.Printf("Error running %q: %v", item.cmd, err)
+			slog.Error("Error running command", "command", item.cmd, "error", err)
 			connected = false
 			newStatus.RawResponses[item.key] = fmt.Sprintf("Error: %v", err)
 			continue
@@ -292,7 +292,7 @@ func (d *Daemon) PollAll() {
 	// Poll SMS
 	smsList, err := d.pollSMS()
 	if err != nil {
-		log.Printf("Error polling SMS: %v", err)
+		slog.Error("Error polling SMS", "error", err)
 	} else {
 		newStatus.SMS = smsList
 	}
@@ -678,7 +678,7 @@ func (d *Daemon) PollSMSOnly() {
 	}
 	smsList, err := d.pollSMS()
 	if err != nil {
-		log.Printf("Error polling SMS: %v", err)
+		slog.Error("Error polling SMS", "error", err)
 		return
 	}
 	d.statusMutex.Lock()

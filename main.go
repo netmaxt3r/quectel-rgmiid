@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strconv"
@@ -29,29 +29,46 @@ func main() {
 	mqttTopic := flag.String("mqtt-topic", getEnv("MQTT_TOPIC", "rgmii"), "MQTT base topic for status (default: rgmii)")
 	mqttDiscovery := flag.Bool("mqtt-discovery", getEnvBool("MQTT_DISCOVERY", true), "Enable Home Assistant MQTT Auto Discovery (default: true)")
 	mqttDiscoveryPrefix := flag.String("mqtt-discovery-prefix", getEnv("MQTT_DISCOVERY_PREFIX", "homeassistant"), "Home Assistant Auto Discovery prefix (default: homeassistant)")
+	logFormat := flag.String("log-format", getEnv("LOG_FORMAT", "text"), "Log format (text or json)")
 
 	flag.Parse()
 
-	log.Printf("Starting Quectel RGMII Daemon")
-	log.Printf("Modem TCP Address: %s", *modemAddr)
-	log.Printf("Web Console Port:  %s", *webPort)
-	log.Printf("Polling Interval:  %ds", *pollInterval)
+	// Initialize slog to write to stdout
+	var handler slog.Handler
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
+	if *logFormat == "json" {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	}
+	slog.SetDefault(slog.New(handler))
+
+	slog.Info("Starting Quectel RGMII Daemon")
+	slog.Info("Configuration",
+		"modem_addr", *modemAddr,
+		"web_port", *webPort,
+		"poll_interval_seconds", *pollInterval,
+	)
+
 	if *authUser != "" && *authPass != "" {
-		log.Printf("Web Auth:          Enabled (user: %s)", *authUser)
+		slog.Info("Web authentication status", "enabled", true, "user", *authUser)
 	} else {
-		log.Printf("Web Auth:          Disabled (no username/password set)")
+		slog.Info("Web authentication status", "enabled", false)
 	}
-	if *apiKey != "" {
-		log.Printf("Static API Key:    Enabled")
-	} else {
-		log.Printf("Static API Key:    Disabled")
-	}
+	slog.Info("API key access status", "enabled", *apiKey != "")
+
 	if *mqttServer != "" {
-		log.Printf("MQTT Server:       %s", *mqttServer)
-		log.Printf("MQTT Topic Base:   %s", *mqttTopic)
-		log.Printf("MQTT HA Discovery: %v (prefix: %s)", *mqttDiscovery, *mqttDiscoveryPrefix)
+		slog.Info("MQTT service status",
+			"enabled", true,
+			"server", *mqttServer,
+			"topic_base", *mqttTopic,
+			"ha_discovery", *mqttDiscovery,
+			"discovery_prefix", *mqttDiscoveryPrefix,
+		)
 	} else {
-		log.Printf("MQTT Client:       Disabled")
+		slog.Info("MQTT service status", "enabled", false)
 	}
 
 	// Initialize daemon
@@ -69,11 +86,12 @@ func main() {
 			ModemAddr:       *modemAddr,
 		})
 		if err != nil {
-			log.Fatalf("Failed to initialize MQTT client: %v", err)
+			slog.Error("Failed to initialize MQTT client", "error", err)
+			os.Exit(1)
 		}
 
 		if err := mqttClient.Connect(); err != nil {
-			log.Printf("MQTT initial connection attempt failed: %v (will auto-retry in background)", err)
+			slog.Warn("MQTT initial connection attempt failed, will auto-retry in background", "error", err)
 		}
 
 		// Register the status publisher callback with the daemon
@@ -91,7 +109,8 @@ func main() {
 	srv := web.NewServer(d, *modemAddr, *authUser, *authPass, *apiKey)
 	go func() {
 		if err := srv.Start(*webPort); err != nil {
-			log.Fatalf("Web server crashed: %v", err)
+			slog.Error("Web server crashed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -100,12 +119,12 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
 
-	log.Println("Shutting down gracefully...")
+	slog.Info("Shutting down gracefully...")
 	cancel()
 	
 	// Wait momentarily to ensure resources are freed
 	time.Sleep(300 * time.Millisecond)
-	log.Println("Daemon terminated.")
+	slog.Info("Daemon terminated.")
 }
 
 func getEnv(key, fallback string) string {

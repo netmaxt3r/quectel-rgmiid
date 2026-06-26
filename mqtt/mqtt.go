@@ -3,7 +3,7 @@ package mqtt
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -68,7 +68,7 @@ func NewClient(cfg Config) (*Client, error) {
 
 	// Set connection callbacks
 	opts.SetOnConnectHandler(func(client mqtt.Client) {
-		log.Printf("MQTT connection established to %s", cfg.Server)
+		slog.Info("MQTT connection established", "server", cfg.Server)
 		c.mu.Lock()
 		last := c.lastStatus
 		c.mu.Unlock()
@@ -78,7 +78,7 @@ func NewClient(cfg Config) (*Client, error) {
 	})
 
 	opts.SetConnectionLostHandler(func(client mqtt.Client, err error) {
-		log.Printf("MQTT connection lost: %v", err)
+		slog.Warn("MQTT connection lost", "error", err)
 	})
 
 	c.client = mqtt.NewClient(opts)
@@ -92,7 +92,7 @@ func (c *Client) Connect() error {
 	token := c.client.Connect()
 	if token.Wait() && token.Error() != nil {
 		err := token.Error()
-		log.Printf("MQTT initial connection attempt failed: %v. Starting background retry loop...", err)
+		slog.Error("MQTT initial connection attempt failed, starting background retry loop", "error", err)
 		go c.retryConnectLoop()
 		return err
 	}
@@ -104,13 +104,13 @@ func (c *Client) retryConnectLoop() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		log.Printf("Retrying initial MQTT connection to %s...", c.cfg.Server)
+		slog.Info("Retrying initial MQTT connection", "server", c.cfg.Server)
 		token := c.client.Connect()
 		if token.Wait() && token.Error() == nil {
-			log.Printf("MQTT connection successfully established via background retry to %s", c.cfg.Server)
+			slog.Info("MQTT connection successfully established via background retry", "server", c.cfg.Server)
 			return
 		} else if token.Error() != nil {
-			log.Printf("MQTT background retry attempt failed: %v", token.Error())
+			slog.Warn("MQTT background retry attempt failed", "error", token.Error())
 		}
 	}
 }
@@ -139,7 +139,7 @@ func (c *Client) publishState(status daemon.ModemStatus) {
 	topic := fmt.Sprintf("%s/status", c.cfg.Topic)
 	bytes, err := json.Marshal(status)
 	if err != nil {
-		log.Printf("Failed to marshal status for MQTT: %v", err)
+		slog.Error("Failed to marshal status for MQTT", "error", err)
 		return
 	}
 
@@ -195,7 +195,7 @@ func (c *Client) publishDiscovery(status daemon.ModemStatus) {
 
 		bytes, err := json.Marshal(payload)
 		if err != nil {
-			log.Printf("Failed to marshal HA discovery payload for %s: %v", sensorID, err)
+			slog.Error("Failed to marshal HA discovery payload", "sensor_id", sensorID, "error", err)
 			return
 		}
 
@@ -318,7 +318,7 @@ func (c *Client) publishDiscovery(status daemon.ModemStatus) {
 		"value_template": "{{ value_json.sim_number }}",
 	})
 
-	log.Printf("Published Home Assistant auto discovery configurations for device %s", deviceId)
+	slog.Info("Published Home Assistant auto discovery configurations", "device_id", deviceId)
 }
 
 func sanitize(s string) string {

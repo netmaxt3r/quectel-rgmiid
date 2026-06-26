@@ -1,0 +1,13 @@
+{
+  "name": "rgmii-web-dashboard",
+  "version": "1.0.0",
+  "packageManager": "yarn@4.3.0",
+  "description": "Quectel RGMII Control Panel Stylesheet compiler",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "tailwindcss -i ./web/static/css/input.css -o ./web/static/css/tailwind.min.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

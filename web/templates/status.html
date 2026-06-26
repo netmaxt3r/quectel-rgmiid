@@ -1,0 +1,327 @@
+<!-- Hidden inputs for setting client page headers dynamically -->
+<input type="hidden" id="modem-addr-field" value="{{ .RawResponses.modem_addr }}">
+
+{{ if eq .ConnectionStatus "Offline" }}
+<!-- MODEM OFFLINE PANEL -->
+<div class="md:col-span-2 glass-panel p-10 rounded-3xl border border-rose-500/25 flex flex-col items-center justify-center text-center shadow-xl shadow-rose-950/20">
+    <div class="h-16 w-16 bg-rose-500/10 rounded-2xl flex items-center justify-center text-rose-500 border border-rose-500/20 mb-5 animate-pulse">
+        <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376C1.83 15.018 1.83 14 2.87 14h18.26c1.04 0 1.68 1.018 1.16 1.976l-9.13 16.74c-.52.955-1.92.955-2.44 0l-9.13-16.74ZM12 17.25h.008v.008H12v-.008Z" />
+        </svg>
+    </div>
+    <h3 class="text-xl font-bold tracking-wide text-rose-400">Modem Connection Offline</h3>
+    <p class="text-slate-400 text-sm mt-2 max-w-md">
+        Unable to communicate with the Quectel RM520 modem at <span class="font-mono text-rose-300 font-medium">{{ .RawResponses.modem_addr }}</span>. 
+        Verify RGMII Ethernet connections, TCP/1555 configuration, and network routing.
+    </p>
+    <div class="mt-6 flex flex-col gap-2 w-full max-w-xs text-left bg-slate-900/50 p-4 rounded-xl border border-white/5 font-mono text-xs text-slate-500">
+        <p><span class="text-rose-500">&gt;</span> Ping gateway: Fail/No response</p>
+        <p><span class="text-rose-500">&gt;</span> Socket dial: Connection refused</p>
+        <p class="text-slate-400"><span class="text-slate-600">&gt;</span> Last check: {{ .LastUpdated.Format "15:04:05" }}</p>
+    </div>
+</div>
+{{ else }}
+<!-- MODEM ONLINE PANEL GRID -->
+
+<!-- Card 1: Signal strength (Visual Gauge) -->
+<div class="glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between group hover:border-cyan-500/20 transition-all duration-300">
+    <div class="flex justify-between items-start mb-4">
+        <div>
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-400">Signal Strength</p>
+            <h3 class="text-3xl font-extrabold text-white mt-1">{{ .SignalPercentage }}%</h3>
+        </div>
+        <div class="h-10 w-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+            </svg>
+        </div>
+    </div>
+    
+    <!-- Visual signal bar indicators -->
+    <div class="my-6">
+        <div class="flex items-end gap-1.5 h-12">
+            <!-- Bar 1 (0-20%) -->
+            <div class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 10 }}h-1/5 bg-cyan-500{{ else }}h-1/5 bg-slate-800{{ end }}"></div>
+            <!-- Bar 2 (21-40%) -->
+            <div class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 30 }}h-2/5 bg-cyan-500{{ else }}h-2/5 bg-slate-800{{ end }}"></div>
+            <!-- Bar 3 (41-60%) -->
+            <div class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 55 }}h-3/5 bg-cyan-500{{ else }}h-3/5 bg-slate-800{{ end }}"></div>
+            <!-- Bar 4 (61-80%) -->
+            <div class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 75 }}h-4/5 bg-cyan-500{{ else }}h-4/5 bg-slate-800{{ end }}"></div>
+            <!-- Bar 5 (81-100%) -->
+            <div class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 90 }}h-full bg-cyan-500{{ else }}h-full bg-slate-800{{ end }}"></div>
+        </div>
+    </div>
+
+    <div class="flex justify-between items-center text-xs text-slate-400 border-t border-white/5 pt-3">
+        <span>CSQ Score: <span class="font-mono text-cyan-400 font-semibold">{{ .SignalCSQ }}</span> / 31</span>
+        <span>Quality: 
+            <span class="font-semibold text-white">
+                {{ if and (eq .SignalPercentage 0) (eq .SignalCSQ 99) }}Unknown
+                {{ else if ge .SignalPercentage 80 }}Excellent
+                {{ else if ge .SignalPercentage 55 }}Good
+                {{ else if ge .SignalPercentage 30 }}Fair
+                {{ else }}Poor
+                {{ end }}
+            </span>
+        </span>
+    </div>
+</div>
+
+<!-- Card 2: Network Carrier & Tech -->
+<div class="glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between group hover:border-indigo-500/20 transition-all duration-300">
+    <div class="flex justify-between items-start mb-4">
+        <div>
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-400">Network Connection</p>
+            <h3 class="text-2xl font-extrabold text-white mt-1 truncate max-w-[180px]">{{ .Carrier }}</h3>
+        </div>
+        <div class="h-10 w-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9s2.015-9 4.5-9m0 0a9.003 9.003 0 0 1 8.716 2.253M12 3a9.003 9.003 0 0 0-8.716 2.253m0 0A9.003 9.003 0 0 1 12 3m0 0c2.13 0 3.87 3.37 4.17 7.75" />
+            </svg>
+        </div>
+    </div>
+
+    <!-- Carrier details / indicators -->
+    <div class="my-5 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-400">Radio Technology</span>
+            <span class="px-2.5 py-0.5 text-xs font-bold font-mono rounded bg-indigo-500/15 border border-indigo-500/35 text-indigo-300 uppercase">
+                {{ if .Tech }}{{ .Tech }}{{ else }}Scanning...{{ end }}
+            </span>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-400">Registration State</span>
+            <span class="text-sm font-semibold text-slate-200">{{ .NetworkRegistration }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-400">Session State</span>
+            <span class="text-xs font-mono font-medium text-emerald-400 flex items-center gap-1.5">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                {{ .ConnectionState }}
+            </span>
+        </div>
+        <div class="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
+            <span class="text-sm text-slate-400">MIMO Configuration</span>
+            <span class="text-xs font-mono font-bold text-slate-200">{{ if .MimoLayers }}{{ .MimoLayers }}{{ else }}Unknown{{ end }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-400">TDD Slot Config</span>
+            <span class="text-xs font-mono font-bold text-slate-200">{{ if .TddSlotRatio }}{{ .TddSlotRatio }}{{ else }}N/A{{ end }}</span>
+        </div>
+        {{ if .IPAddress }}
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-400">IPv4 Address</span>
+            <span class="text-xs font-mono text-slate-300 select-all">{{ .IPAddress }}</span>
+        </div>
+        {{ end }}
+        {{ if .IPv6Address }}
+        <div class="flex flex-col gap-1 mt-1">
+            <span class="text-sm text-slate-400">IPv6 Address</span>
+            <span class="text-xs font-mono text-cyan-400 select-all leading-normal break-all">{{ .IPv6Address }}</span>
+        </div>
+        {{ end }}
+    </div>
+
+    <div class="flex justify-between items-center text-xs text-slate-500 border-t border-white/5 pt-3">
+        <span>SIM: <span class="font-mono text-slate-300 font-semibold">{{ .SimState }}</span>{{ if and (ne .SimNumber "N/A") (ne .SimNumber "Unknown") (ne .SimNumber "") }} (<span class="font-mono text-cyan-400 select-all">{{ .SimNumber }}</span>){{ end }}</span>
+        <span>MCC/MNC: <span class="font-mono text-slate-300 font-semibold">{{ .ServingCell.MCC }}/{{ .ServingCell.MNC }}</span></span>
+    </div>
+</div>
+
+<!-- Card 3: Signal Metrics (RSRP/RSRQ/SINR Grid) -->
+<div class="md:col-span-2 glass-panel rounded-3xl p-6 hover:border-emerald-500/20 transition-all duration-300">
+    <div class="flex justify-between items-center mb-6 pb-3 border-b border-white/5">
+        <div class="flex items-center gap-2">
+            <div class="h-6 w-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" />
+                </svg>
+            </div>
+            <h4 class="text-md font-semibold text-slate-200">Serving Cell RF Telemetry</h4>
+        </div>
+        <span class="text-xs text-slate-500">Cell ID: <span class="font-mono text-slate-300">{{ .ServingCell.CellID }}</span></span>
+    </div>
+
+    <!-- Radio metrics tables -->
+    <div class="grid grid-cols-1 gap-8">
+        <!-- Section A: Primary Serving Cell (usually LTE or 5G SA) -->
+        <div class="flex flex-col gap-3">
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-cyan-500"></span>
+                Primary Link {{ if eq .Tech "NR5G-SA" }}(5G SA){{ else }}(LTE Anchor){{ end }}
+            </h5>
+            <div class="bg-slate-900/30 rounded-2xl p-4 border border-white/5 flex flex-col gap-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">Band</span>
+                    <span class="font-mono font-medium text-white">{{ .ServingCell.Band }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">RSRP</span>
+                    <span class="font-mono font-medium text-white">{{ .ServingCell.RSRP }} <span class="text-xs text-slate-500">dBm</span></span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">RSRQ</span>
+                    <span class="font-mono font-medium text-white">{{ .ServingCell.RSRQ }} <span class="text-xs text-slate-500">dB</span></span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">SINR</span>
+                    <span class="font-mono font-medium text-white">{{ .ServingCell.SINR }} <span class="text-xs text-slate-500">dB</span></span>
+                </div>
+                <div class="flex justify-between text-sm border-t border-white/5 pt-2 mt-1">
+                    <span class="text-slate-500">PCI / ARFCN</span>
+                    <span class="font-mono text-xs text-slate-300">{{ .ServingCell.PCI }} / {{ if eq .Tech "NR5G-SA" }}{{ .ServingCell.ARFCN }}{{ else }}{{ .ServingCell.EARFCN }}{{ end }}</span>
+                </div>
+                {{ if eq .Tech "NR5G-SA" }}
+                <div class="flex justify-between text-sm border-t border-white/5 pt-2 mt-1">
+                    <span class="text-slate-400">5G CSI</span>
+                    <span class="font-mono text-xs text-slate-300 text-right">{{ .Nr5gCsi }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">5G Tx Power</span>
+                    <span class="font-mono text-xs text-slate-300 text-right">{{ .Nr5gTxPwr }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">5G UL MCS</span>
+                    <span class="font-mono text-xs text-slate-300 text-right">{{ .Nr5gUlMcs }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">5G DL MCS</span>
+                    <span class="font-mono text-xs text-slate-300 text-right">{{ .Nr5gDlMcs }}</span>
+                </div>
+                {{ else }}
+                <div class="flex justify-between text-sm border-t border-white/5 pt-2 mt-1">
+                    <span class="text-slate-400">LTE CSI</span>
+                    <span class="font-mono text-xs text-slate-300 text-right">{{ .LteCsi }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">LTE Tx Power</span>
+                    <span class="font-mono text-xs text-slate-300 text-right">{{ .LteTxPwr }}</span>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Card 4: Device/Modem Telemetry -->
+<div class="md:col-span-2 glass-panel rounded-3xl p-6 hover:border-slate-500/20 transition-all duration-300">
+    <div class="flex items-center justify-between mb-4 pb-3 border-b border-white/5">
+        <div class="flex items-center gap-2">
+            <div class="h-6 w-6 rounded-lg bg-slate-500/10 border border-slate-500/20 flex items-center justify-center text-slate-400">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                </svg>
+            </div>
+            <h4 class="text-md font-semibold text-slate-200">Device Hardware Information</h4>
+        </div>
+        <button 
+            hx-post="/api/modem/restart" 
+            hx-confirm="Are you sure you want to restart the modem? This will drop the connection for about 30 seconds."
+            hx-swap="innerHTML"
+            hx-target="#restart-result"
+            class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-400 border border-rose-500/20 transition flex items-center gap-1"
+        >
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+            Restart Modem
+        </button>
+    </div>
+    
+    <!-- Restart Status Div -->
+    <div id="restart-result" class="text-xs mb-3 font-mono"></div>
+
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+        <div class="bg-slate-900/20 p-3 rounded-xl border border-white/5">
+            <span class="text-xs text-slate-500 block">Manufacturer</span>
+            <span class="font-semibold text-slate-200 mt-0.5 block">{{ if .Manufacturer }}{{ .Manufacturer }}{{ else }}Quectel{{ end }}</span>
+        </div>
+        <div class="bg-slate-900/20 p-3 rounded-xl border border-white/5">
+            <span class="text-xs text-slate-500 block">Model</span>
+            <span class="font-semibold text-slate-200 mt-0.5 block">{{ if .Model }}{{ .Model }}{{ else }}RM520N-GL{{ end }}</span>
+        </div>
+        <div class="bg-slate-900/20 p-3 rounded-xl border border-white/5">
+            <span class="text-xs text-slate-500 block">Firmware Release</span>
+            <span class="font-mono text-xs font-semibold text-slate-300 mt-1 block truncate" title="{{ .Revision }}">{{ .Revision }}</span>
+        </div>
+        <div class="bg-slate-900/20 p-3 rounded-xl border border-white/5">
+            <span class="text-xs text-slate-500 block">Session Uptime</span>
+            <span class="font-semibold text-cyan-400 mt-0.5 block">{{ if .SessionUptime }}{{ .SessionUptime }}{{ else }}N/A{{ end }}</span>
+        </div>
+        <div class="bg-slate-900/20 p-3 rounded-xl border border-white/5">
+            <span class="text-xs text-slate-500 block">Telemetry Sync</span>
+            <span class="font-semibold text-slate-400 mt-0.5 block">{{ .LastUpdated.Format "15:04:05" }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Card 5: SMS Inbox -->
+<div class="md:col-span-2 glass-panel rounded-3xl p-6 hover:border-cyan-500/20 transition-all duration-300">
+    <div class="flex items-center justify-between mb-4 pb-3 border-b border-white/5">
+        <div class="flex items-center gap-2">
+            <div class="h-6 w-6 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                </svg>
+            </div>
+            <h4 class="text-md font-semibold text-slate-200">SMS Inbox</h4>
+        </div>
+        <span class="text-xs text-slate-500">Total: <span class="font-mono text-slate-300 font-semibold">{{ len .SMS }}</span></span>
+    </div>
+
+    {{ if .SMS }}
+    <div class="flex flex-col gap-3 max-h-[350px] overflow-y-auto pr-1 terminal-scroll">
+        {{ range .SMS }}
+        <div class="bg-slate-900/20 p-4 rounded-2xl border border-white/5 flex flex-col gap-2 relative group/sms">
+            <div class="flex justify-between items-start gap-4">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-sm font-bold text-slate-200 select-all">{{ .Sender }}</span>
+                    {{ if eq .Status "REC UNREAD" }}
+                    <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 uppercase tracking-wide flex items-center gap-1">
+                        <span class="h-1 w-1 rounded-full bg-emerald-400 animate-ping"></span>
+                        Unread
+                    </span>
+                    {{ else }}
+                    <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 border border-white/5 text-slate-400 uppercase tracking-wide">
+                        Read
+                    </span>
+                    {{ end }}
+                </div>
+                
+                <!-- Action Buttons: Delete -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-500 font-mono">{{ .Date }}</span>
+                    <button 
+                        hx-post="/api/sms/delete" 
+                        hx-vals='{"index": "{{ .Index }}"}'
+                        hx-confirm="Are you sure you want to delete this message?"
+                        hx-target="#dashboard-container"
+                        hx-swap="innerHTML"
+                        class="opacity-0 group-hover/sms:opacity-100 transition-opacity duration-200 ml-2 px-2.5 py-1 text-[11px] font-semibold rounded bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-400 border border-rose-500/20 transition flex items-center gap-1"
+                    >
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                        </svg>
+                        Delete
+                    </button>
+                </div>
+            </div>
+            
+            <p class="text-sm font-mono text-slate-300 leading-relaxed whitespace-pre-wrap select-text selection:bg-cyan-500/30">{{ .Content }}</p>
+        </div>
+        {{ end }}
+    </div>
+    {{ else }}
+    <div class="bg-slate-900/10 rounded-2xl p-6 border border-white/5 border-dashed flex flex-col items-center justify-center min-h-[120px] text-center text-slate-500">
+        <svg class="h-6 w-6 text-slate-600 mb-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 9v.906a2.25 2.25 0 0 1-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25 0 0 0 1.183 1.981l6.478 3.488m8.839 2.51l-4.66-2.51m0 0l-1.02.548a1.875 1.875 0 0 1-2.015 0l-1.02-.548m5.055-.548v-4.25m-5.055 4.25v-4.25m-4.66 2.51l4.66-2.51m0 0l-4.66-2.51" />
+        </svg>
+        <p class="text-xs">No messages in inbox.</p>
+    </div>
+    {{ end }}
+</div>
+
+{{ end }}

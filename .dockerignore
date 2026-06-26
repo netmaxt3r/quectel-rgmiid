@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+quectel-rgmii
+rgmii_daemon
+node_modules
+.yarn/cache
+.yarn/unplugged
+.yarn/install-state.gz
+.pnp.*

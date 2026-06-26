@@ -1,0 +1,6 @@
+/.idea
+/node_modules
+.yarn
+rgmii_daemon
+web/static/css/tailwind.min.css
+**/.DS_Store

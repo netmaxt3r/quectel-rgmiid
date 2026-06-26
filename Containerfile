@@ -37,8 +37,8 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-s -w" -o
 # Stage 3: Create a lightweight runtime image
 FROM alpine:latest
 
-# Install CA certificates in case HTTPS requests are needed
-RUN apk --no-cache add ca-certificates
+# Install CA certificates and tzdata for local time support
+RUN apk --no-cache add ca-certificates tzdata
 
 WORKDIR /app
 

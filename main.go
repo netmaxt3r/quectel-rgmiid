@@ -33,11 +33,17 @@ func main() {
 
 	flag.Parse()
 
-	// Initialize slog to write to stdout
-	var handler slog.Handler
+	// Initialize slog to write to stdout and display local time (respecting TZ)
 	opts := &slog.HandlerOptions{
 		Level: slog.LevelInfo,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey && !a.Value.Time().IsZero() {
+				return slog.String(slog.TimeKey, a.Value.Time().Local().Format("2006-01-02T15:04:05.000-07:00"))
+			}
+			return a
+		},
 	}
+	var handler slog.Handler
 	if *logFormat == "json" {
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	} else {

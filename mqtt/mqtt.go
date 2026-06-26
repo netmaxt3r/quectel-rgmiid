@@ -85,13 +85,34 @@ func NewClient(cfg Config) (*Client, error) {
 	return c, nil
 }
 
-// Connect starts the asynchronous connection to the MQTT broker.
+// Connect starts the connection to the MQTT broker.
+// If the initial connection attempt fails, it spawns a background goroutine
+// to retry connecting until successful.
 func (c *Client) Connect() error {
 	token := c.client.Connect()
 	if token.Wait() && token.Error() != nil {
-		return token.Error()
+		err := token.Error()
+		log.Printf("MQTT initial connection attempt failed: %v. Starting background retry loop...", err)
+		go c.retryConnectLoop()
+		return err
 	}
 	return nil
+}
+
+func (c *Client) retryConnectLoop() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		log.Printf("Retrying initial MQTT connection to %s...", c.cfg.Server)
+		token := c.client.Connect()
+		if token.Wait() && token.Error() == nil {
+			log.Printf("MQTT connection successfully established via background retry to %s", c.cfg.Server)
+			return
+		} else if token.Error() != nil {
+			log.Printf("MQTT background retry attempt failed: %v", token.Error())
+		}
+	}
 }
 
 // PublishStatus is the callback function that will be registered with the Daemon.

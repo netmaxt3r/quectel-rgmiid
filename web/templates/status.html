@@ -110,15 +110,23 @@
             <span class="text-xs font-mono font-bold text-slate-200">{{ if .TddSlotRatio }}{{ .TddSlotRatio }}{{ else }}N/A{{ end }}</span>
         </div>
         {{ if .IPAddress }}
-        <div class="flex items-center justify-between">
+        <div class="flex justify-between items-start mt-1.5 border-t border-white/5 pt-1.5">
             <span class="text-sm text-slate-400">IPv4 Address</span>
-            <span class="text-xs font-mono text-slate-300 select-all">{{ .IPAddress }}</span>
+            <div class="flex flex-col gap-1 items-end text-right">
+                {{ range splitIPs .IPAddress }}
+                <span class="text-xs font-mono text-slate-300 select-all">{{ . }}</span>
+                {{ end }}
+            </div>
         </div>
         {{ end }}
         {{ if .IPv6Address }}
-        <div class="flex flex-col gap-1 mt-1">
+        <div class="flex justify-between items-start mt-1.5 border-t border-white/5 pt-1.5">
             <span class="text-sm text-slate-400">IPv6 Address</span>
-            <span class="text-xs font-mono text-cyan-400 select-all leading-normal break-all">{{ .IPv6Address }}</span>
+            <div class="flex flex-col gap-1 items-end text-right max-w-[200px]">
+                {{ range splitIPs .IPv6Address }}
+                <span class="text-xs font-mono text-cyan-400 select-all leading-normal break-all">{{ . }}</span>
+                {{ end }}
+            </div>
         </div>
         {{ end }}
     </div>

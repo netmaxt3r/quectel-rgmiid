@@ -26,7 +26,14 @@ import (
 var webFS embed.FS
 
 var (
-	tmpl = template.Must(template.ParseFS(webFS, "templates/index.html", "templates/status.html", "templates/login.html"))
+	tmpl = template.Must(template.New("").Funcs(template.FuncMap{
+		"splitIPs": func(s string) []string {
+			if s == "" {
+				return nil
+			}
+			return strings.Split(s, ", ")
+		},
+	}).ParseFS(webFS, "templates/index.html", "templates/status.html", "templates/login.html"))
 )
 
 // Server coordinates routing HTTP requests.

@@ -135,14 +135,14 @@
                 </div>
 
                 <!-- Command History Section -->
-                <div class="mt-5 border-t border-white/5 pt-4">
-                    <div class="flex justify-between items-center mb-2">
+                <div class="mt-5 border-t border-white/5 pt-4 flex flex-col flex-1 min-h-[120px] overflow-hidden">
+                    <div class="flex justify-between items-center mb-2 flex-none">
                         <span class="text-xs font-medium uppercase tracking-wider text-slate-400">Recent Commands</span>
                         <button type="button" onclick="clearHistory()"
-                            class="text-[10px] text-slate-500 hover:text-rose-400 transition">Clear All</button>
+                            class="text-[10px] text-slate-500 hover:text-rose-400 transition flex-none">Clear All</button>
                     </div>
                     <div id="command-history-container"
-                        class="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+                        class="flex-1 overflow-y-auto pr-1 terminal-scroll flex flex-col gap-1.5">
                         <span class="text-xs text-slate-600 italic">No command history yet.</span>
                     </div>
                 </div>

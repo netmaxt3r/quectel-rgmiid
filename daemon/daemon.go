@@ -497,6 +497,19 @@ func parseServingCell(output string, status *ModemStatus) {
 	}
 }
 
+func appendIP(current, newIP string) string {
+	if current == "" {
+		return newIP
+	}
+	parts := strings.Split(current, ", ")
+	for _, part := range parts {
+		if part == newIP {
+			return current
+		}
+	}
+	return current + ", " + newIP
+}
+
 func parseIPAddress(ipStr string, status *ModemStatus) {
 	ipStr = strings.Trim(strings.TrimSpace(ipStr), "\"")
 	if ipStr == "" {
@@ -507,7 +520,7 @@ func parseIPAddress(ipStr string, status *ModemStatus) {
 	if len(parts) == 4 {
 		// IPv4 (make sure it's not unspecified)
 		if ipStr != "0.0.0.0" {
-			status.IPAddress = ipStr
+			status.IPAddress = appendIP(status.IPAddress, ipStr)
 		}
 	} else if len(parts) == 16 {
 		// IPv6 represented as 16 decimal octets separated by dots (e.g. Quectel RGMII format)
@@ -531,14 +544,14 @@ func parseIPAddress(ipStr string, status *ModemStatus) {
 				octets[12], octets[13], octets[14], octets[15])
 			netIP := net.ParseIP(ipv6)
 			if netIP != nil && !netIP.IsUnspecified() {
-				status.IPv6Address = netIP.String()
+				status.IPv6Address = appendIP(status.IPv6Address, netIP.String())
 			}
 		}
 	} else if strings.Contains(ipStr, ":") {
 		// Standard IPv6 format
 		netIP := net.ParseIP(ipStr)
 		if netIP != nil && !netIP.IsUnspecified() {
-			status.IPv6Address = netIP.String()
+			status.IPv6Address = appendIP(status.IPv6Address, netIP.String())
 		}
 	}
 }

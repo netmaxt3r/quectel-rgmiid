@@ -224,6 +224,14 @@ func TestParseCGPADDR(t *testing.T) {
 			wantIPv4: "10.20.30.40",
 			wantIPv6: "2409:40f3:142a:3d72:8000::",
 		},
+		{
+			name: "Multiple IPv6 and IPv4 addresses (user case)",
+			input: "+CGPADDR: 1,\"2409:40F3:001E:6843:8000:0000:0000:0000\"\r\n" +
+				"+CGPADDR: 2,\"2409:4133:1453:4AF7:8000:0000:0000:0000\"\r\n" +
+				"+CGPADDR: 3,\"0.0.0.0\",\"0000:0000:0000:0000:0000:0000:0000:0000\"\r\n",
+			wantIPv4: "",
+			wantIPv6: "2409:40f3:1e:6843:8000::, 2409:4133:1453:4af7:8000::",
+		},
 	}
 
 	for _, tt := range tests {

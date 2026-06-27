@@ -7,6 +7,35 @@
     font-family: 'Outfit', sans-serif;
     background: radial-gradient(circle at top right, rgba(16, 24, 48, 0.9) 0%, rgba(8, 10, 16, 1) 100%);
   }
+
+  /* Firefox global scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+
+  /* Webkit global scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(6, 182, 212, 0.45);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
 }
 
 @layer components {
@@ -15,22 +44,5 @@
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  }
-
-  .terminal-scroll::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .terminal-scroll::-webkit-scrollbar-track {
-    background: rgba(15, 23, 42, 0.6);
-  }
-
-  .terminal-scroll::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-  }
-
-  .terminal-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
   }
 }

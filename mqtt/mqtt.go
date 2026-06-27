@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"rgmii/daemon"
+	"rgmii/devicestatus"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -30,7 +30,7 @@ type Client struct {
 	client             mqtt.Client
 	discoveryPublished bool
 	mu                 sync.Mutex
-	lastStatus         *daemon.ModemStatus
+	lastStatus         *devicestatus.ModemStatus
 }
 
 // NewClient instantiates a new MQTT client helper.
@@ -116,7 +116,7 @@ func (c *Client) retryConnectLoop() {
 }
 
 // PublishStatus is the callback function that will be registered with the Daemon.
-func (c *Client) PublishStatus(status daemon.ModemStatus) {
+func (c *Client) PublishStatus(status devicestatus.ModemStatus) {
 	c.mu.Lock()
 	c.lastStatus = &status
 	shouldPublishDiscovery := !c.discoveryPublished
@@ -135,7 +135,7 @@ func (c *Client) PublishStatus(status daemon.ModemStatus) {
 	c.publishState(status)
 }
 
-func (c *Client) publishState(status daemon.ModemStatus) {
+func (c *Client) publishState(status devicestatus.ModemStatus) {
 	topic := fmt.Sprintf("%s/status", c.cfg.Topic)
 	bytes, err := json.Marshal(status)
 	if err != nil {
@@ -148,7 +148,7 @@ func (c *Client) publishState(status daemon.ModemStatus) {
 	token.WaitTimeout(2 * time.Second)
 }
 
-func (c *Client) publishDiscovery(status daemon.ModemStatus) {
+func (c *Client) publishDiscovery(status devicestatus.ModemStatus) {
 	deviceId := "rgmii_modem"
 	//if status.SimNumber != "" && status.SimNumber != "N/A" {
 	//	deviceId = "rgmii_" + sanitize(status.SimNumber)
@@ -265,50 +265,50 @@ func (c *Client) publishDiscovery(status daemon.ModemStatus) {
 	pubSensor("sensor", "lte_rsrp", "LTE RSRP", map[string]interface{}{
 		"device_class":        "signal_strength",
 		"unit_of_measurement": "dBm",
-		"value_template":      "{{ value_json.serving_cell.rsrp }}",
+		"value_template":      "{{ value_json.get('service', {}).get('lte', {}).get('rsrp') or 'N/A' }}",
 	})
 
 	// 11. LTE RSRQ (sensor)
 	pubSensor("sensor", "lte_rsrq", "LTE RSRQ", map[string]interface{}{
 		"unit_of_measurement": "dB",
-		"value_template":      "{{ value_json.serving_cell.rsrq }}",
+		"value_template":      "{{ value_json.get('service', {}).get('lte', {}).get('rsrq') or 'N/A' }}",
 	})
 
 	// 12. LTE SINR (sensor)
 	pubSensor("sensor", "lte_sinr", "LTE SINR", map[string]interface{}{
 		"unit_of_measurement": "dB",
-		"value_template":      "{{ value_json.serving_cell.sinr }}",
+		"value_template":      "{{ value_json.get('service', {}).get('lte', {}).get('sinr') or 'N/A' }}",
 	})
 
 	// 13. NR5G RSRP (sensor)
 	pubSensor("sensor", "nr5g_rsrp", "NR5G RSRP", map[string]interface{}{
 		"device_class":        "signal_strength",
 		"unit_of_measurement": "dBm",
-		"value_template":      "{{ value_json.serving_cell.nr5g_rsrp }}",
+		"value_template":      "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('rsrp') or value_json.get('service', {}).get('nr5g_nsa', {}).get('rsrp') or 'N/A' }}",
 	})
 
 	// 14. NR5G RSRQ (sensor)
 	pubSensor("sensor", "nr5g_rsrq", "NR5G RSRQ", map[string]interface{}{
 		"unit_of_measurement": "dB",
-		"value_template":      "{{ value_json.serving_cell.nr5g_rsrq }}",
+		"value_template":      "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('rsrq') or value_json.get('service', {}).get('nr5g_nsa', {}).get('rsrq') or 'N/A' }}",
 	})
 
 	// 15. NR5G SINR (sensor)
 	pubSensor("sensor", "nr5g_sinr", "NR5G SINR", map[string]interface{}{
 		"unit_of_measurement": "dB",
-		"value_template":      "{{ value_json.serving_cell.nr5g_sinr }}",
+		"value_template":      "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('sinr') or value_json.get('service', {}).get('nr5g_nsa', {}).get('sinr') or 'N/A' }}",
 	})
 
 	// 16. LTE Band (sensor)
 	pubSensor("sensor", "lte_band", "LTE Band", map[string]interface{}{
 		"icon":           "mdi:radio-tower",
-		"value_template": "{{ value_json.serving_cell.band }}",
+		"value_template": "{{ value_json.get('service', {}).get('lte', {}).get('band') or 'N/A' }}",
 	})
 
 	// 17. NR5G Band (sensor)
 	pubSensor("sensor", "nr5g_band", "NR5G Band", map[string]interface{}{
 		"icon":           "mdi:radio-tower",
-		"value_template": "{{ value_json.serving_cell.nr5g_band }}",
+		"value_template": "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('band') or value_json.get('service', {}).get('nr5g_nsa', {}).get('band') or 'N/A' }}",
 	})
 
 	// 18. Sim Number

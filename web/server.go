@@ -64,7 +64,7 @@ func (s *Server) Start(port string) error {
 	mux := http.NewServeMux()
 	s.routes(mux)
 	slog.Info("Starting web control panel", "url", "http://localhost:"+port)
-	
+
 	server := &http.Server{
 		Addr:         ":" + port,
 		Handler:      mux,
@@ -78,6 +78,7 @@ func (s *Server) Start(port string) error {
 func (s *Server) routes(mux *http.ServeMux) {
 	mux.Handle("GET /{$}", s.sessionOrTokenAuth(http.HandlerFunc(s.handleIndex)))
 	mux.Handle("GET /api/status", s.sessionOrTokenAuth(http.HandlerFunc(s.handleStatus)))
+	mux.Handle("GET /api/status/json", s.sessionOrTokenAuth(http.HandlerFunc(s.handleStatusJSON)))
 	mux.Handle("GET /api/refresh", s.sessionOrTokenAuth(http.HandlerFunc(s.handleRefresh)))
 	mux.Handle("POST /api/cmd", s.sessionOrTokenAuth(s.csrfProtect(http.HandlerFunc(s.handleCmd))))
 	mux.Handle("POST /api/cmd/json", s.sessionOrTokenAuth(s.csrfProtect(http.HandlerFunc(s.handleCmdJSON))))
@@ -324,11 +325,23 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	status := s.daemon.GetStatus()
-	
+
 	// Inject modem address for client script consumption
 	status.RawResponses["modem_addr"] = s.modemAddr
 
 	s.renderTemplate(w, http.StatusOK, "status.html", status)
+}
+
+func (s *Server) handleStatusJSON(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	status := s.daemon.GetStatus()
+
+	// Inject modem address for consistency
+	status.RawResponses["modem_addr"] = s.modemAddr
+
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	enc.Encode(status)
 }
 
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {

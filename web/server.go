@@ -15,10 +15,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"rgmii/commands"
 	"rgmii/daemon"
 )
 
@@ -33,7 +35,10 @@ var (
 			}
 			return strings.Split(s, ", ")
 		},
-	}).ParseFS(webFS, "templates/index.html", "templates/status.html", "templates/login.html"))
+		"add": func(a, b int) int {
+			return a + b
+		},
+	}).ParseFS(webFS, "templates/index.html", "templates/status.html", "templates/sms.html", "templates/console.html", "templates/login.html", "templates/settings.html"))
 )
 
 // Server coordinates routing HTTP requests.
@@ -78,6 +83,11 @@ func (s *Server) Start(port string) error {
 func (s *Server) routes(mux *http.ServeMux) {
 	mux.Handle("GET /{$}", s.sessionOrTokenAuth(http.HandlerFunc(s.handleIndex)))
 	mux.Handle("GET /api/status", s.sessionOrTokenAuth(http.HandlerFunc(s.handleStatus)))
+	mux.Handle("GET /api/apn", s.sessionOrTokenAuth(http.HandlerFunc(s.handleGetAPN)))
+	mux.Handle("POST /api/apn/set", s.sessionOrTokenAuth(s.csrfProtect(http.HandlerFunc(s.handleSetAPN))))
+	mux.Handle("POST /api/data/activate", s.sessionOrTokenAuth(s.csrfProtect(http.HandlerFunc(s.handleActivateData))))
+	mux.Handle("POST /api/data/deactivate", s.sessionOrTokenAuth(s.csrfProtect(http.HandlerFunc(s.handleDeactivateData))))
+	mux.Handle("GET /api/settings", s.sessionOrTokenAuth(http.HandlerFunc(s.handleSettingsPage)))
 	mux.Handle("GET /api/status/json", s.sessionOrTokenAuth(http.HandlerFunc(s.handleStatusJSON)))
 	mux.Handle("GET /api/refresh", s.sessionOrTokenAuth(http.HandlerFunc(s.handleRefresh)))
 	mux.Handle("POST /api/cmd", s.sessionOrTokenAuth(s.csrfProtect(http.HandlerFunc(s.handleCmd))))
@@ -86,7 +96,10 @@ func (s *Server) routes(mux *http.ServeMux) {
 		mux.Handle("GET /api/debug", s.sessionOrTokenAuth(http.HandlerFunc(s.handleDebug)))
 	}
 	mux.Handle("POST /api/modem/restart", s.sessionOrTokenAuth(s.csrfProtect(http.HandlerFunc(s.handleModemRestart))))
+	mux.Handle("GET /api/sms", s.sessionOrTokenAuth(http.HandlerFunc(s.handleSMS)))
+	mux.Handle("POST /api/sms/send", s.sessionOrTokenAuth(s.csrfProtect(http.HandlerFunc(s.handleSendSMS))))
 	mux.Handle("POST /api/sms/delete", s.sessionOrTokenAuth(s.csrfProtect(http.HandlerFunc(s.handleDeleteSMS))))
+	mux.Handle("GET /api/console", s.sessionOrTokenAuth(http.HandlerFunc(s.handleConsole)))
 
 	mux.HandleFunc("GET /login", s.handleLoginGet)
 	mux.HandleFunc("POST /login", s.handleLoginPost)
@@ -344,9 +357,104 @@ func (s *Server) handleStatusJSON(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(status)
 }
 
+func (s *Server) handleGetAPN(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	idStr := r.URL.Query().Get("id")
+	ctxID, err := strconv.Atoi(idStr)
+	if err != nil || ctxID < 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid or missing id"})
+		return
+	}
+	status := s.daemon.GetStatus()
+	cfg, ok := status.APNConfigMap[ctxID]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "APN config not found for context"})
+		return
+	}
+	json.NewEncoder(w).Encode(cfg)
+}
+
+func (s *Server) handleSetAPN(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	idStr := r.URL.Query().Get("id")
+	ctxID, err := strconv.Atoi(idStr)
+	if err != nil || ctxID < 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid or missing id"})
+		return
+	}
+	var cfg commands.APNConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON body"})
+		return
+	}
+	if err := s.daemon.SetAPN(ctxID, cfg); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func (s *Server) handleActivateData(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	idStr := r.URL.Query().Get("id")
+	ctxID, err := strconv.Atoi(idStr)
+	if err != nil || ctxID < 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid or missing id"})
+		return
+	}
+	if err := s.daemon.ActivateData(ctxID); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"status": "activated"})
+}
+
+func (s *Server) handleDeactivateData(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	idStr := r.URL.Query().Get("id")
+	ctxID, err := strconv.Atoi(idStr)
+	if err != nil || ctxID < 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid or missing id"})
+		return
+	}
+	if err := s.daemon.DeactivateData(ctxID); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"status": "deactivated"})
+}
+
+func (s *Server) handleSettingsPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	status := s.daemon.GetStatus()
+	if err := tmpl.ExecuteTemplate(w, "settings.html", status); err != nil {
+		slog.Error("Error executing settings template", "error", err)
+		http.Error(w, "Template execution error", http.StatusInternalServerError)
+	}
+}
+
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	s.daemon.PollAll()
-	s.handleStatus(w, r)
+	tab := r.URL.Query().Get("tab")
+	switch tab {
+	case "sms":
+		s.handleSMSPage(w, r, "", "", "", "")
+	case "console":
+		s.handleConsole(w, r)
+	case "settings":
+		s.handleSettingsPage(w, r)
+	default:
+		s.handleStatus(w, r)
+	}
 }
 
 func (s *Server) handleCmd(w http.ResponseWriter, r *http.Request) {
@@ -367,6 +475,7 @@ func (s *Server) handleCmd(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := s.daemon.SendCommand(cmd)
 	if err != nil {
+		w.Header().Set("X-Cmd-Failed", "true")
 		fmt.Fprintf(w, "<span class=\"text-rose-500 font-medium\">Error: %s</span></div>", template.HTMLEscapeString(err.Error()))
 		return
 	}
@@ -470,8 +579,116 @@ func (s *Server) handleDeleteSMS(w http.ResponseWriter, r *http.Request) {
 	// Trigger dynamic poll to update cache (SMS only)
 	s.daemon.PollSMSOnly()
 
-	// Return updated status UI
-	s.handleStatus(w, r)
+	// Return updated SMS UI
+	s.handleSMSPage(w, r, "Message deleted successfully", "", "", "")
+}
+
+func (s *Server) handleSMS(w http.ResponseWriter, r *http.Request) {
+	s.handleSMSPage(w, r, "", "", "", "")
+}
+
+func (s *Server) handleSMSPage(w http.ResponseWriter, r *http.Request, successMsg, errorMsg, number, text string) {
+	status := s.daemon.GetStatus()
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	data := struct {
+		commands.ModemStatus
+		Success string
+		Error   string
+		Number  string
+		Text    string
+	}{
+		ModemStatus: status,
+		Success:     successMsg,
+		Error:       errorMsg,
+		Number:      number,
+		Text:        text,
+	}
+
+	err := tmpl.ExecuteTemplate(w, "sms.html", data)
+	if err != nil {
+		slog.Error("Error executing sms template", "error", err)
+		http.Error(w, "Template execution error", http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	err := tmpl.ExecuteTemplate(w, "console.html", nil)
+	if err != nil {
+		slog.Error("Error executing console template", "error", err)
+		http.Error(w, "Template execution error", http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) handleSendSMS(w http.ResponseWriter, r *http.Request) {
+	var number, text string
+
+	if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		// JSON Request
+		var req struct {
+			Number string `json:"number"`
+			Text   string `json:"text"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			s.sendSMSResponse(w, r, false, "Invalid JSON body", "", "", "")
+			return
+		}
+		number = req.Number
+		text = req.Text
+	} else {
+		// Form/HTMX Request
+		err := r.ParseForm()
+		if err != nil {
+			s.sendSMSResponse(w, r, false, "Invalid form data", "", "", "")
+			return
+		}
+		number = r.FormValue("number")
+		text = r.FormValue("text")
+	}
+
+	if number == "" || text == "" {
+		s.sendSMSResponse(w, r, false, "Recipient number and message text are required", "", number, text)
+		return
+	}
+
+	err := s.daemon.SendSMS(number, text)
+	if err != nil {
+		slog.Error("Failed to send SMS", "error", err)
+		s.sendSMSResponse(w, r, false, fmt.Sprintf("Failed to send SMS: %v", err), "", number, text)
+		return
+	}
+
+	// Trigger SMS poll to reflect any state changes
+	s.daemon.PollSMSOnly()
+
+	s.sendSMSResponse(w, r, true, "", "SMS sent successfully", "", "")
+}
+
+func (s *Server) sendSMSResponse(w http.ResponseWriter, r *http.Request, success bool, errorMsg, successMsg, number, text string) {
+	isHTMX := r.Header.Get("HX-Request") != ""
+
+	if isHTMX {
+		// Return the SMS template partial with success/error alerts
+		s.handleSMSPage(w, r, successMsg, errorMsg, number, text)
+		return
+	}
+
+	// Standard API Response
+	w.Header().Set("Content-Type", "application/json")
+	if !success {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"status":  "error",
+			"message": errorMsg,
+		})
+		return
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": successMsg,
+	})
 }
 
 type gzipResponseWriter struct {

@@ -1,4 +1,4 @@
-package devicestatus
+package commands
 
 import (
 	"strings"

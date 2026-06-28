@@ -1,10 +1,11 @@
 package daemon
 
 import (
+	"strings"
 	"testing"
 	"time"
 
-	"rgmii/devicestatus"
+	"rgmii/commands"
 )
 
 func TestFormatDuration(t *testing.T) {
@@ -63,7 +64,15 @@ func TestParseSMSList(t *testing.T) {
 		`It is valid for 5 minutes.` + "\r\n" +
 		`OK` + "\r\n"
 
-	messages := parseSMSList(resp)
+	lines := strings.Split(resp, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimSpace(lines[i])
+	}
+
+	smsList := &commands.SMSList{}
+	smsList.ParseRespone(nil, nil, lines, resp)
+	messages := smsList.SMS
+
 	if len(messages) != 2 {
 		t.Fatalf("expected 2 messages, got %d", len(messages))
 	}
@@ -81,8 +90,8 @@ func TestParseSMSList(t *testing.T) {
 func TestDaemonCallbacks(t *testing.T) {
 	d := NewDaemon("127.0.0.1:9999", 1*time.Second)
 
-	ch := make(chan devicestatus.ModemStatus, 2)
-	d.OnStatusUpdate(func(status devicestatus.ModemStatus) {
+	ch := make(chan commands.ModemStatus, 2)
+	d.OnStatusUpdate(func(status commands.ModemStatus) {
 		ch <- status
 	})
 
@@ -96,5 +105,32 @@ func TestDaemonCallbacks(t *testing.T) {
 		}
 	case <-time.After(1 * time.Second):
 		t.Fatal("timed out waiting for status update callback")
+	}
+}
+
+func TestSendSMS_Offline(t *testing.T) {
+	d := NewDaemon("127.0.0.1:0", 1*time.Second)
+	err := d.SendSMS("+1234567890", "Hello World")
+	if err == nil {
+		t.Fatal("expected error when sending SMS on offline daemon, got nil")
+	}
+}
+
+func TestSetATIDebug(t *testing.T) {
+	d := NewDaemon("127.0.0.1:0", 1*time.Second)
+	
+	// Default should be false
+	if d.client.Debug {
+		t.Errorf("expected default debug to be false, got true")
+	}
+
+	d.SetATIDebug(true)
+	if !d.client.Debug {
+		t.Errorf("expected debug to be true after SetATIDebug(true)")
+	}
+
+	d.SetATIDebug(false)
+	if d.client.Debug {
+		t.Errorf("expected debug to be false after SetATIDebug(false)")
 	}
 }

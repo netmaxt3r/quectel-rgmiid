@@ -1,8 +1,18 @@
-package devicestatus
+package commands
 
 import (
 	"testing"
 )
+
+func TestSplitCSV(t *testing.T) {
+	parts := SplitCSV(`1,"REC UNREAD","+1234567890",,"26/06/25,23:59:59+22"`)
+	if len(parts) < 5 {
+		t.Fatalf("expected 5 parts, got %d", len(parts))
+	}
+	if parts[1] != "REC UNREAD" || parts[2] != "+1234567890" {
+		t.Errorf("unexpected parse: %v", parts)
+	}
+}
 
 func TestParseCSVToStruct_ServingCell5GSA(t *testing.T) {
 	input := `"NOCONN","NR5G-SA","TDD",405,86,"123456789",452,"4E","627264",78,-90,-11,12,15,10`
@@ -123,24 +133,5 @@ func TestParseCSVToStruct_ServingCellLTE(t *testing.T) {
 	}
 	if sclte.Srxlev != 30 {
 		t.Errorf("expected Srxlev 30, got %d", sclte.Srxlev)
-	}
-}
-
-func TestServingCell_ParseRespone(t *testing.T) {
-	sc := &ServingCell{}
-	lines := []string{`"NOCONN","NR5G-SA","TDD",405,86,"123456789",452,"4E","627264",78,-90,-11,12,15,10`}
-	sc.ParseRespone(nil, nil, lines, "")
-
-	if sc.AccessTechnology != "NR5G-SA" {
-		t.Errorf("expected AccessTechnology NR5G-SA, got %q", sc.AccessTechnology)
-	}
-	if sc.ServiceTech != NR5G_SA {
-		t.Errorf("expected ServiceTech NR5G_SA, got %v", sc.ServiceTech)
-	}
-	if sc.NR5GSA == nil {
-		t.Fatal("expected NR5GSA to be non-nil")
-	}
-	if sc.NR5GSA.State != "NOCONN" {
-		t.Errorf("expected NR5GSA.State NOCONN, got %q", sc.NR5GSA.State)
 	}
 }

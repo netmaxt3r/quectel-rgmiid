@@ -35,6 +35,7 @@ type Client struct {
 	session     *Session
 	urcChan     chan string
 	connectChan chan struct{}
+	Debug       bool
 }
 
 // NewClient creates a new persistent RGMII Client.
@@ -43,9 +44,9 @@ func NewClient(addr string) *Client {
 		addr:        addr,
 		urcChan:     make(chan string, 100),
 		connectChan: make(chan struct{}, 1),
+		Debug:       false,
 	}
 }
-
 
 // Start kicks off the background connection manager.
 func (c *Client) Start(ctx context.Context) {
@@ -96,7 +97,7 @@ func (c *Client) reconnectLoop(ctx context.Context) {
 
 		slog.Info("TCP socket established with modem", "address", c.addr)
 		session := NewSession(conn)
-		
+
 		c.mu.Lock()
 		c.session = session
 		c.mu.Unlock()
@@ -134,6 +135,9 @@ func (c *Client) readerLoop(s *Session) {
 		}
 
 		if n > 0 {
+			if c.Debug {
+				slog.Debug("AT RECV", "raw", cleanQuote(string(readBuf[:n])))
+			}
 			buf = append(buf, readBuf[:n]...)
 
 			// Parse frames in buf
@@ -190,18 +194,26 @@ func (c *Client) readerLoop(s *Session) {
 	}
 }
 
-// SendCommand sends a command and waits for response frames under a timeout.
+// SendCommand sends a command (adding standard line endings if needed) and waits for response under a timeout.
 func (c *Client) SendCommand(cmd string, timeout time.Duration) (string, error) {
-	if len(cmd) > 2048 {
-		return "", fmt.Errorf("command length %d exceeds maximum limit of 2048 bytes", len(cmd))
-	}
-
 	if !strings.HasSuffix(cmd, "\r\n") {
 		if strings.HasSuffix(cmd, "\r") {
 			cmd = cmd + "\n"
 		} else {
 			cmd = cmd + "\r\n"
 		}
+	}
+	return c.sendCommand(cmd, timeout)
+}
+
+// SendRawCommand sends a raw command (without suffix processing) and waits for response under a timeout.
+func (c *Client) SendRawCommand(cmd string, timeout time.Duration) (string, error) {
+	return c.sendCommand(cmd, timeout)
+}
+
+func (c *Client) sendCommand(cmd string, timeout time.Duration) (string, error) {
+	if len(cmd) > 2048 {
+		return "", fmt.Errorf("command length %d exceeds maximum limit of 2048 bytes", len(cmd))
 	}
 
 	c.mu.Lock()
@@ -229,6 +241,9 @@ func (c *Client) SendCommand(cmd string, timeout time.Duration) (string, error) 
 	// Send payload
 	if err := s.conn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 		return "", fmt.Errorf("set write deadline failed: %w", err)
+	}
+	if c.Debug {
+		slog.Debug("AT SEND", "raw", cleanQuote(string(req)))
 	}
 	if _, err := s.conn.Write(req); err != nil {
 		return "", fmt.Errorf("write command failed: %w", err)
@@ -272,4 +287,81 @@ func isTerminalResponse(s string) bool {
 
 func isValidHeader(b byte) bool {
 	return b == 0xa4 || b == 0xa0 || b == 0xe0 || b == 0xe4
+}
+
+func cleanQuote(s string) string {
+	return s
+}
+
+type ClientInteractive struct {
+	client *Client
+	s      *Session
+}
+
+func (ci *ClientInteractive) Write(data string) error {
+	if err := ci.s.conn.SetWriteDeadline(time.Now().Add(10*time.Second)); err != nil {
+		return fmt.Errorf("set write deadline failed: %w", err)
+	}
+	if ci.client.Debug {
+		slog.Debug("AT SEND", "raw", cleanQuote(data))
+	}
+	if _, err := ci.s.conn.Write([]byte(data)); err != nil {
+		return fmt.Errorf("write failed: %w", err)
+	}
+	return nil
+}
+
+func (ci *ClientInteractive) WriteCmd(cmd string) error {
+	cmdBytes := []byte(cmd)
+	cmdLen := len(cmdBytes)
+	req := make([]byte, 3+cmdLen)
+	req[0] = 0xa4
+	req[1] = byte((cmdLen >> 8) & 0xff)
+	req[2] = byte(cmdLen & 0xff)
+	copy(req[3:], cmdBytes)
+
+	if err := ci.s.conn.SetWriteDeadline(time.Now().Add(10*time.Second)); err != nil {
+		return fmt.Errorf("set write deadline failed: %w", err)
+	}
+	if ci.client.Debug {
+		slog.Debug("AT SEND", "raw", cleanQuote(string(req)))
+	}
+	if _, err := ci.s.conn.Write(req); err != nil {
+		return fmt.Errorf("write failed: %w", err)
+	}
+	return nil
+}
+
+func (ci *ClientInteractive) ReadFrame(timeout time.Duration) (string, error) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case frame := <-ci.s.responseChan:
+		return frame, nil
+	case <-timer.C:
+		return "", fmt.Errorf("timeout waiting for frame")
+	}
+}
+
+func (ci *ClientInteractive) Close() error {
+	return nil
+}
+
+// StartInteractive begins an interactive session on the client connection.
+func (c *Client) StartInteractive() (*ClientInteractive, error) {
+	c.mu.Lock()
+	s := c.session
+	if s == nil {
+		c.mu.Unlock()
+		return nil, fmt.Errorf("modem connection offline")
+	}
+	c.mu.Unlock()
+
+	// Drain any stale messages from response buffer
+	for len(s.responseChan) > 0 {
+		<-s.responseChan
+	}
+
+	return &ClientInteractive{client: c, s: s}, nil
 }

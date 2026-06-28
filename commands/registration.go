@@ -1,4 +1,4 @@
-package devicestatus
+package commands
 
 import (
 	"strings"
@@ -41,8 +41,13 @@ func (r *Registration) ParseRespone(ctx *ParsingContext, status *ModemStatus, re
 	if len(resp) > 0 {
 		line := resp[0]
 		parts := strings.Split(line, ",")
+		var stat string
 		if len(parts) >= 2 {
-			stat := strings.TrimSpace(parts[1])
+			stat = strings.TrimSpace(parts[1])
+		} else if len(parts) == 1 {
+			stat = strings.TrimSpace(parts[0])
+		}
+		if stat != "" {
 			switch stat {
 			case "0":
 				r.NetworkRegistration = "Not registered"

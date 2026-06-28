@@ -1,4 +1,4 @@
-package devicestatus
+package commands
 
 import (
 	"strings"
@@ -20,7 +20,7 @@ func (c *CNUM) Command(ctx *ParsingContext) ATCommand {
 func (c *CNUM) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	c.SimNumber = "N/A"
 	for _, line := range resp {
-		parts := splitCSV(line)
+		parts := SplitCSV(line)
 		if len(parts) >= 2 {
 			num := strings.Trim(strings.TrimSpace(parts[1]), "\"")
 			if num != "" {

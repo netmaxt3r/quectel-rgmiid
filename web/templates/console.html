@@ -1,0 +1,68 @@
+<div class="grid grid-cols-1 gap-8 md:col-span-2">
+    <div class="glass-panel rounded-2xl p-6 flex flex-col flex-1 shadow-2xl relative overflow-hidden min-h-[500px]">
+        <!-- Glowing background accent -->
+        <div class="absolute -top-12 -right-12 h-32 w-32 bg-cyan-500/10 blur-3xl rounded-full"></div>
+
+        <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+                <div class="h-3 w-3 rounded-full bg-cyan-500 animate-pulse"></div>
+                <h2 class="text-md font-semibold tracking-wide text-slate-200">Interactive AT Console</h2>
+            </div>
+            <button onclick="clearConsole()"
+                class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800/80 px-2.5 py-1 rounded border border-white/5">
+                Clear Output
+            </button>
+        </div>
+
+        <!-- Console history display -->
+        <div id="console-output"
+            class="flex-1 bg-slate-950/80 border border-white/5 rounded-xl p-4 font-mono text-sm text-cyan-400 overflow-y-auto terminal-scroll mb-4 min-h-[300px] max-h-[500px]">
+            <span class="text-slate-500">// Welcome to the Quectel AT console.<br></span>
+            <span class="text-slate-500">// Commands are routed over RGMII TCP/1555 port.<br></span>
+            <span class="text-slate-500">// Type a command below (e.g. ATI) and press Enter.<br><br></span>
+        </div>
+
+        <!-- Input form -->
+        <form id="console-form" hx-post="/api/cmd" hx-target="#console-output" hx-swap="beforeend"
+            hx-on::after-request="if(!event.detail.xhr.getResponseHeader('X-Cmd-Failed')) { this.reset(); }; scrollTerminalBottom()" class="flex gap-2">
+            <input type="text" name="cmd" id="cmd-input" placeholder="Enter AT command (e.g. ATI)" required
+                autocomplete="off"
+                class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition placeholder-slate-500">
+            <button type="submit"
+                class="px-5 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:scale-95 transition font-medium text-sm flex items-center justify-center">
+                Send
+            </button>
+        </form>
+
+        <!-- Command suggestions -->
+        <div class="mt-4 flex flex-wrap gap-1.5 items-center">
+            <span class="text-xs text-slate-500 mr-1.5">Common:</span>
+            <button type="button" onclick="fillCommand('ATI')"
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">ATI</button>
+            <button type="button" onclick="fillCommand('AT+CSQ')"
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+CSQ</button>
+            <button type="button" onclick="fillCommand('AT+COPS?')"
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+COPS?</button>
+            <button type="button" onclick="fillCommand('AT+QCAINFO')"
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+QCAINFO</button>
+            <button type="button" onclick="fillCommand('AT+QENG=&quot;servingcell&quot;')"
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+QENG?</button>
+            <button type="button" onclick="fillCommand('AT+QNWCFG=&quot;csi_ctrl&quot;,1,1')"
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">Enable
+                CSI</button>
+        </div>
+
+        <!-- Command History Section -->
+        <div class="mt-5 border-t border-white/5 pt-4 flex flex-col flex-1 min-h-[120px] overflow-hidden">
+            <div class="flex justify-between items-center mb-2 flex-none">
+                <span class="text-xs font-medium uppercase tracking-wider text-slate-400">Recent Commands</span>
+                <button type="button" onclick="clearHistory()"
+                    class="text-[10px] text-slate-500 hover:text-rose-400 transition flex-none">Clear All</button>
+            </div>
+            <div id="command-history-container"
+                class="flex-1 overflow-y-auto pr-1 terminal-scroll flex flex-col gap-1.5">
+                <span class="text-xs text-slate-600 italic">No command history yet.</span>
+            </div>
+        </div>
+    </div>
+</div>

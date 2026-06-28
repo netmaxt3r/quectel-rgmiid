@@ -13,9 +13,20 @@
     <link rel="stylesheet" href="/static/css/fonts.css">
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/static/favicon.png">
+    <style>
+        .htmx-indicator {
+            display: none !important;
+        }
+        .htmx-request .htmx-indicator,
+        .htmx-request.htmx-indicator {
+            display: block !important;
+        }
+    </style>
 </head>
 
-<body class="h-full flex flex-col antialiased">
+<body class="h-full flex flex-col antialiased" hx-indicator="#global-loading">
+    <!-- Global Loading Indicator Bar -->
+    <div id="global-loading" class="htmx-indicator fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-teal-400 to-indigo-500 z-50 animate-pulse"></div>
     <!-- Navbar -->
     <header class="border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center glass-panel">
         <div class="flex items-center gap-3">
@@ -41,7 +52,7 @@
                 <p class="text-xs text-slate-400">Modem Address</p>
                 <p class="text-sm font-mono text-cyan-400" id="modem-addr-display">Connecting...</p>
             </div>
-            <button hx-get="/api/refresh" hx-target="#dashboard-container" hx-swap="innerHTML"
+            <button id="refresh-btn" hx-get="/api/refresh?tab=status" hx-target="#tab-content" hx-swap="innerHTML"
                 class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 transition flex items-center gap-2 border border-white/5">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -63,88 +74,54 @@
     </header>
 
     <!-- Main Workspace -->
-    <main
-        class="flex-1 p-6 md:p-12 max-w-[1600px] w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 overflow-y-auto">
-        <!-- Left 2 Cols: Dashboard Stats -->
-        <div class="lg:col-span-2 flex flex-col gap-8">
-            <!-- HTMX dynamic target container -->
-            <div id="dashboard-container" hx-get="/api/status" hx-trigger="load, every 5s" hx-swap="innerHTML"
-                class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <!-- Initial Loading skeleton -->
-                <div
-                    class="md:col-span-2 glass-panel p-8 rounded-2xl flex flex-col items-center justify-center min-h-[300px]">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mb-4"></div>
-                    <p class="text-slate-400 animate-pulse">Loading modem status telemetry...</p>
-                </div>
+    <main class="flex-1 p-6 md:p-12 max-w-[1200px] w-full mx-auto flex flex-col gap-8 overflow-y-auto">
+        <div class="flex flex-col gap-8">
+            <!-- Navigation Tabs -->
+            <div class="flex border-b border-white/5 pb-px gap-6 mb-2">
+                <button id="tab-status-btn" 
+                    hx-get="/api/status" 
+                    hx-target="#tab-content" 
+                    hx-swap="innerHTML"
+                    hx-trigger="click"
+                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/api/refresh?tab=status'); htmx.process(document.getElementById('refresh-btn'));"
+                    class="tab-btn border-b-2 border-cyan-500 pb-3 text-sm font-semibold text-white px-1 transition-all duration-200 focus:outline-none">
+                    Status
+                </button>
+                <button id="tab-sms-btn" 
+                    hx-get="/api/sms" 
+                    hx-target="#tab-content" 
+                    hx-swap="innerHTML"
+                    hx-trigger="click"
+                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/api/refresh?tab=sms'); htmx.process(document.getElementById('refresh-btn'));"
+                    class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
+                    SMS
+                </button>
+                <button id="tab-console-btn" 
+                    hx-get="/api/console" 
+                    hx-target="#tab-content" 
+                    hx-swap="innerHTML"
+                    hx-trigger="click"
+                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/api/refresh?tab=console'); htmx.process(document.getElementById('refresh-btn'));"
+                    class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
+                    Console
+                </button>
+                <button id="tab-settings-btn" 
+                    hx-get="/api/settings" 
+                    hx-target="#tab-content" 
+                    hx-swap="innerHTML"
+                    hx-trigger="click"
+                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/api/refresh?tab=settings'); htmx.process(document.getElementById('refresh-btn'));"
+                    class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
+                    Settings
+                </button>
             </div>
-        </div>
 
-        <!-- Right Col: Raw AT Command Terminal -->
-        <div class="flex flex-col h-full min-h-[500px]">
-            <div class="glass-panel rounded-2xl p-6 flex flex-col flex-1 shadow-2xl relative overflow-hidden">
-                <!-- Glowing background accent -->
-                <div class="absolute -top-12 -right-12 h-32 w-32 bg-cyan-500/10 blur-3xl rounded-full"></div>
-
-                <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                    <div class="flex items-center gap-2">
-                        <div class="h-3 w-3 rounded-full bg-cyan-500 animate-pulse"></div>
-                        <h2 class="text-md font-semibold tracking-wide text-slate-200">Interactive AT Console</h2>
-                    </div>
-                    <button onclick="clearConsole()"
-                        class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800/80 px-2.5 py-1 rounded border border-white/5">
-                        Clear Output
-                    </button>
-                </div>
-
-                <!-- Console history display -->
-                <div id="console-output"
-                    class="flex-1 bg-slate-950/80 border border-white/5 rounded-xl p-4 font-mono text-sm text-cyan-400 overflow-y-auto terminal-scroll mb-4 min-h-[300px] max-h-[500px]">
-                    <span class="text-slate-500">// Welcome to the Quectel AT console.<br></span>
-                    <span class="text-slate-500">// Commands are routed over RGMII TCP/1555 port.<br></span>
-                    <span class="text-slate-500">// Type a command below (e.g. ATI) and press Enter.<br><br></span>
-                </div>
-
-                <!-- Input form -->
-                <form id="console-form" hx-post="/api/cmd" hx-target="#console-output" hx-swap="beforeend"
-                    hx-on::after-request="this.reset(); scrollTerminalBottom()" class="flex gap-2">
-                    <input type="text" name="cmd" id="cmd-input" placeholder="Enter AT command (e.g. ATI)" required
-                        autocomplete="off"
-                        class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition placeholder-slate-500">
-                    <button type="submit"
-                        class="px-5 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:scale-95 transition font-medium text-sm flex items-center justify-center">
-                        Send
-                    </button>
-                </form>
-
-                <!-- Command suggestions -->
-                <div class="mt-4 flex flex-wrap gap-1.5 items-center">
-                    <span class="text-xs text-slate-500 mr-1.5">Common:</span>
-                    <button type="button" onclick="fillCommand('ATI')"
-                        class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">ATI</button>
-                    <button type="button" onclick="fillCommand('AT+CSQ')"
-                        class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+CSQ</button>
-                    <button type="button" onclick="fillCommand('AT+COPS?')"
-                        class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+COPS?</button>
-                    <button type="button" onclick="fillCommand('AT+QCAINFO')"
-                        class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+QCAINFO</button>
-                    <button type="button" onclick="fillCommand('AT+QENG=&quot;servingcell&quot;')"
-                        class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+QENG?</button>
-                    <button type="button" onclick="fillCommand('AT+QNWCFG=&quot;csi_ctrl&quot;,1,1')"
-                        class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">Enable
-                        CSI</button>
-                </div>
-
-                <!-- Command History Section -->
-                <div class="mt-5 border-t border-white/5 pt-4 flex flex-col flex-1 min-h-[120px] overflow-hidden">
-                    <div class="flex justify-between items-center mb-2 flex-none">
-                        <span class="text-xs font-medium uppercase tracking-wider text-slate-400">Recent Commands</span>
-                        <button type="button" onclick="clearHistory()"
-                            class="text-[10px] text-slate-500 hover:text-rose-400 transition flex-none">Clear All</button>
-                    </div>
-                    <div id="command-history-container"
-                        class="flex-1 overflow-y-auto pr-1 terminal-scroll flex flex-col gap-1.5">
-                        <span class="text-xs text-slate-600 italic">No command history yet.</span>
-                    </div>
+            <!-- HTMX dynamic target container -->
+            <div id="tab-content" hx-get="/api/status" hx-trigger="load" hx-swap="innerHTML" class="flex flex-col gap-8">
+                <!-- Initial Loading skeleton -->
+                <div class="glass-panel p-8 rounded-2xl flex flex-col items-center justify-center min-h-[300px]">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mb-4"></div>
+                    <p class="text-slate-400 animate-pulse">Loading dashboard telemetry...</p>
                 </div>
             </div>
         </div>
@@ -275,13 +252,12 @@
             consoleBox.scrollTop = consoleBox.scrollHeight;
         }
 
-        // Initialize history on load
-        document.addEventListener('DOMContentLoaded', () => {
-            renderHistory();
-
-            // Listen to form submit to store commands
+        // Initialize history and form listeners on HTMX load
+        document.body.addEventListener('htmx:load', function (evt) {
             const form = document.getElementById('console-form');
-            if (form) {
+            if (form && !form.dataset.initialized) {
+                form.dataset.initialized = 'true';
+                renderHistory();
                 form.addEventListener('submit', () => {
                     const cmdInput = document.getElementById('cmd-input');
                     if (cmdInput) {
@@ -308,7 +284,7 @@
 
         // Monitor background status updates to set modem address header
         document.body.addEventListener('htmx:afterSettle', function (evt) {
-            if (evt.detail.target.id === 'dashboard-container') {
+            if (evt.detail.target.id === 'tab-content') {
                 const addr = document.getElementById('modem-addr-field');
                 if (addr) {
                     document.getElementById('modem-addr-display').innerText = addr.value;

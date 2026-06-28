@@ -449,3 +449,66 @@ func TestDeleteSMS(t *testing.T) {
 		}
 	})
 }
+
+func TestSendSMS(t *testing.T) {
+	t.Run("missing number or text", func(t *testing.T) {
+		s := NewServer(nil, "", "", "", "")
+		req := httptest.NewRequest("POST", "/api/sms/send", strings.NewReader("number=&text="))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+
+		s.handleSendSMS(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("expected 500, got %d", rec.Code)
+		}
+	})
+
+	t.Run("daemon offline returns 500", func(t *testing.T) {
+		d := daemon.NewDaemon("127.0.0.1:0", 0)
+		s := NewServer(d, "", "", "", "")
+		req := httptest.NewRequest("POST", "/api/sms/send", strings.NewReader("number=+1234567890&text=hello"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+
+		s.handleSendSMS(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("expected 500, got %d", rec.Code)
+		}
+	})
+}
+
+func TestConsoleEndpoint(t *testing.T) {
+	t.Run("renders console template", func(t *testing.T) {
+		s := NewServer(nil, "", "", "", "")
+		req := httptest.NewRequest("GET", "/api/console", nil)
+		rec := httptest.NewRecorder()
+
+		s.handleConsole(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), "Interactive AT Console") {
+			t.Errorf("expected body to contain console title, got %q", rec.Body.String())
+		}
+	})
+
+	t.Run("handleCmd sets failure header on error", func(t *testing.T) {
+		d := daemon.NewDaemon("127.0.0.1:0", 0)
+		s := NewServer(d, "", "", "", "")
+		req := httptest.NewRequest("POST", "/api/cmd", strings.NewReader("cmd=ATI"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+
+		s.handleCmd(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+		if rec.Header().Get("X-Cmd-Failed") != "true" {
+			t.Errorf("expected X-Cmd-Failed header to be set, got %q", rec.Header().Get("X-Cmd-Failed"))
+		}
+	})
+}

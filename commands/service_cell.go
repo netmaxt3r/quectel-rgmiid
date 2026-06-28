@@ -1,4 +1,4 @@
-package devicestatus
+package commands
 
 import (
 	"strconv"
@@ -17,8 +17,6 @@ const (
 	GPRS
 )
 
-// +QENG: "servingcell",<state>,"NR5G-SA",<duplex_mode>,<mcc>,<mnc>,<cellid>,<pcid>,
-// <nr_dl_arfcn>,<freq_band_ind>,<tac>,<rsrp>,<rsrq>,<sinr>,<tx_power>,<srxlev>
 type ServingCell5GSA struct {
 	State      string `json:"state"`
 	Tech       string `json:"tech"`
@@ -42,6 +40,7 @@ type ServingCell5GSA struct {
 	Nr5gUlMcs      `json:",inline"`
 	Nr5gDlMcs      `json:",inline"`
 	Nr5gTxPwr      `json:",inline"`
+	Nr5gTddInfo    `json:",inline"`
 }
 
 func (s *ServingCell5GSA) ConnectionState() string {
@@ -78,6 +77,7 @@ type ServingCell5GNSA struct {
 	Nr5gUlMcs      `json:",inline"`
 	Nr5gDlMcs      `json:",inline"`
 	Nr5gTxPwr      `json:",inline"`
+	Nr5gTddInfo    `json:",inline"`
 }
 
 func (s *ServingCell5GNSA) ConnectionState() string {
@@ -213,10 +213,12 @@ func (sc *ServingCell) ParseRespone(ctx *ParsingContext, status *ModemStatus, re
 func (sc *ServingCell) parse5GSA(ctx *ParsingContext, status *ModemStatus, resp string) {
 	sc.NR5GSA = &ServingCell5GSA{}
 	resp = strings.TrimPrefix(resp, `"servingcell",`)
-	parts := splitCSV(resp)
+	parts := SplitCSV(resp)
 	for i := range parts {
 		parts[i] = strings.Trim(strings.TrimSpace(parts[i]), "\"")
 	}
+	// +QENG: "servingcell",<state>,<mode>,<duplex>,<mcc>,<mnc>,<cellid>,<pcid>,
+	// <tac>,<arfcn>,<band>,<srxlev>,<rsrp>,<rsrq>,<sinr>,<tx_power>,<sc>
 
 	if len(parts) >= 10 {
 		sc.NR5GSA.State = parts[0]
@@ -226,15 +228,12 @@ func (sc *ServingCell) parse5GSA(ctx *ParsingContext, status *ModemStatus, resp 
 		sc.NR5GSA.MNC, _ = strconv.Atoi(parts[4])
 		sc.NR5GSA.CellId = parts[5]
 		sc.NR5GSA.PCID, _ = strconv.Atoi(parts[6])
-		sc.NR5GSA.NrDlArfcn = parts[7]
-		sc.NR5GSA.Band, _ = strconv.Atoi(parts[8])
-		sc.NR5GSA.Tac = parts[9]
+		sc.NR5GSA.Tac = parts[7]
+		sc.NR5GSA.NrDlArfcn = parts[8]
+		sc.NR5GSA.Band, _ = strconv.Atoi(parts[9])
+		sc.NR5GSA.Srxlev, _ = strconv.Atoi(parts[10])
 
-		rsrpIdx := 10
-		if len(parts) > 11 && !strings.HasPrefix(parts[10], "-") {
-			sc.NR5GSA.Srxlev, _ = strconv.Atoi(parts[10])
-			rsrpIdx = 11
-		}
+		rsrpIdx := 11
 
 		if len(parts) > rsrpIdx {
 			sc.NR5GSA.RSRP, _ = strconv.Atoi(parts[rsrpIdx])
@@ -248,16 +247,13 @@ func (sc *ServingCell) parse5GSA(ctx *ParsingContext, status *ModemStatus, resp 
 		if len(parts) > rsrpIdx+3 {
 			sc.NR5GSA.TxPower, _ = strconv.Atoi(parts[rsrpIdx+3])
 		}
-		if sc.NR5GSA.Srxlev == 0 && len(parts) > rsrpIdx+4 {
-			sc.NR5GSA.Srxlev, _ = strconv.Atoi(parts[rsrpIdx+4])
-		}
 	}
 }
 
 func (sc *ServingCell) parseLTE(ctx *ParsingContext, resp string) {
 	sc.LTE = &ServingCellLTE{}
 	resp = strings.TrimPrefix(resp, `"servingcell",`)
-	parts := splitCSV(resp)
+	parts := SplitCSV(resp)
 	for i := range parts {
 		parts[i] = strings.Trim(strings.TrimSpace(parts[i]), "\"")
 	}
@@ -320,7 +316,7 @@ func (sc *ServingCell) parse5GNSA(ctx *ParsingContext, status *ModemStatus, raw 
 			continue
 		}
 		content := line[6:]
-		parts := splitCSV(content)
+		parts := SplitCSV(content)
 		for i := range parts {
 			parts[i] = strings.Trim(strings.TrimSpace(parts[i]), "\"")
 		}

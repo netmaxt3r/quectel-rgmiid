@@ -1,4 +1,4 @@
-package devicestatus
+package commands
 
 import (
 	"fmt"
@@ -20,77 +20,6 @@ func appendIP(current, newIP string) string {
 	return current + ", " + newIP
 }
 
-func parseServingCellParts(output string, typePrefix string) []string {
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "+QENG:") {
-			continue
-		}
-		content := line[6:]
-		if strings.HasPrefix(content, " ") {
-			content = content[1:]
-		}
-		parts := strings.Split(content, ",")
-		for i := range parts {
-			parts[i] = strings.Trim(strings.TrimSpace(parts[i]), "\"")
-		}
-		if len(parts) < 3 {
-			continue
-		}
-		if typePrefix == "NR5G-NSA" && parts[0] == "NR5G-NSA" {
-			return parts
-		}
-		if parts[0] == "servingcell" && parts[2] == typePrefix {
-			return parts
-		}
-	}
-	return nil
-}
-
-func parseMimoStringCommon(resp string, paramName string) string {
-	cleaned := strings.ReplaceAll(resp, " ", "")
-	cleaned = strings.ReplaceAll(cleaned, "\t", "")
-	idx := strings.Index(cleaned, "+QNWCFG:\""+paramName+"\",")
-	if idx != -1 {
-		var mode, layers int
-		_, err := fmt.Sscanf(cleaned[idx:], "+QNWCFG:\""+paramName+"\",%d,%d", &mode, &layers)
-		if err == nil {
-			return fmt.Sprintf("%dx%d MIMO", layers, layers)
-		}
-	}
-	return "Unknown"
-}
-
-func parseQNWCFGString(resp string, paramName string) []string {
-	cleaned := strings.ReplaceAll(resp, " ", "")
-	cleaned = strings.ReplaceAll(cleaned, "\t", "")
-	cleaned = strings.ReplaceAll(cleaned, "\r", "")
-	cleaned = strings.ReplaceAll(cleaned, "\n", "")
-
-	prefixWithQuotes := fmt.Sprintf("+QNWCFG:\"%s\",", paramName)
-	prefixWithoutQuotes := fmt.Sprintf("+QNWCFG:%s,", paramName)
-
-	var startIdx int
-	if idx := strings.Index(cleaned, prefixWithQuotes); idx != -1 {
-		startIdx = idx + len(prefixWithQuotes)
-	} else if idx := strings.Index(cleaned, prefixWithoutQuotes); idx != -1 {
-		startIdx = idx + len(prefixWithoutQuotes)
-	} else {
-		return nil
-	}
-
-	argsStr := cleaned[startIdx:]
-	if strings.HasSuffix(argsStr, "OK") {
-		argsStr = strings.TrimSuffix(argsStr, "OK")
-	}
-
-	if argsStr == "" {
-		return nil
-	}
-
-	return strings.Split(argsStr, ",")
-}
 
 func formatMcs(args []string) string {
 	if len(args) == 0 {
@@ -170,7 +99,7 @@ func formatTxPower(args []string) string {
 	return strings.Join(parts, ", ")
 }
 
-func splitCSV(line string) []string {
+func SplitCSV(line string) []string {
 	var parts []string
 	var current strings.Builder
 	inQuotes := false
@@ -196,7 +125,7 @@ func ParseCSVToStruct(dest interface{}, csvLine string) error {
 	}
 
 	structVal := val.Elem()
-	parts := splitCSV(csvLine)
+	parts := SplitCSV(csvLine)
 
 	numFields := structVal.NumField()
 	for i := 0; i < numFields; i++ {
@@ -228,4 +157,21 @@ func ParseCSVToStruct(dest interface{}, csvLine string) error {
 		}
 	}
 	return nil
+}
+
+func IsTerminalResponse(s string) bool {
+	trimmed := strings.TrimSpace(s)
+	if strings.HasSuffix(trimmed, "OK") {
+		return true
+	}
+	if strings.HasSuffix(trimmed, "ERROR") {
+		return true
+	}
+	if strings.Contains(trimmed, "+CME ERROR:") {
+		return true
+	}
+	if strings.Contains(trimmed, "+CMS ERROR:") {
+		return true
+	}
+	return false
 }

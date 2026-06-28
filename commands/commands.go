@@ -1,8 +1,9 @@
-package devicestatus
+package commands
 
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"strings"
 	"time"
@@ -12,13 +13,25 @@ type ATCommand struct {
 	Name           string
 	Command        string
 	ResponsePrefix string
+	Timeout        time.Duration
+	IsRaw          bool
+	NoCache        bool
 }
 type ATField interface {
 	Command(ctx *ParsingContext) ATCommand
 	ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string)
 }
+
+type InteractiveSession interface {
+	Write(data string) error
+	WriteCmd(cmd string) error
+	ReadFrame(timeout time.Duration) (string, error)
+	Close() error
+}
+
 type ATIConnection interface {
 	ExecuteATCommand(ctx *ParsingContext, cmd ATCommand) (string, error)
+	StartInteractive() (InteractiveSession, error)
 }
 
 // ParsingContext holds data needed during response parsing.
@@ -34,15 +47,6 @@ type ATResponseParser interface {
 	Parse(ctx *ParsingContext)
 }
 
-// SMSMessage represents a single SMS message stored on the modem.
-type SMSMessage struct {
-	Index   int    `json:"index"`
-	Status  string `json:"status"`
-	Sender  string `json:"sender"`
-	Date    string `json:"date"`
-	Content string `json:"content"`
-}
-
 // ModemStatus represents the overall structured state of the modem.
 // order of fields is important as it decides setting some parse context values like tech,
 // carrier etc.
@@ -56,6 +60,11 @@ type ModemStatus struct {
 	//TODO fix search state while tech is not yet discovered, for now reg/roaming status
 	Registration
 	CGPADDR
+	SMSList      `json:",inline"`
+	SMSCapacity  `json:",inline"`
+	APNConfigs   `json:"-"`
+	CGACTStatus  `json:"-"`
+	APNConfigMap map[int]APNConfig `json:"apn_configs"`
 
 	ConnectionState  string            `json:"connection_state"` // NOCONN, CONNECT
 	Tech             string            `json:"tech"`             // LTE, NR5G-SA, 5G NSA, etc.
@@ -63,13 +72,19 @@ type ModemStatus struct {
 	ConnectionStatus string            `json:"connection_status"` // Connected, Offline
 	RawResponses     map[string]string `json:"raw_responses"`
 	SessionUptime    string            `json:"session_uptime"`
-	SMS              []SMSMessage      `json:"sms"`
 }
 
 func NewModemStatus() *ModemStatus {
 	return &ModemStatus{
 		CSQ:          CSQ{SignalCSQ: 99},
-		RawResponses: make(map[string]string)}
+		RawResponses: make(map[string]string),
+		APNConfigMap: make(map[int]APNConfig),
+	}
+}
+
+// CloneAPNConfigMap returns a deep copy of the APN config map.
+func CloneAPNConfigMap(m map[int]APNConfig) map[int]APNConfig {
+	return maps.Clone(m)
 }
 func RunParser(ctx *ParsingContext, status *ModemStatus, field ATField) {
 	resp, err := ctx.Connection.ExecuteATCommand(ctx, field.Command(ctx))
@@ -165,44 +180,6 @@ func (s *ModemStatus) Parse(ctx *ParsingContext) {
 		}
 	}
 
-}
-
-// TechCommands returns the map of tech-specific AT commands depending on connection technology.
-func (s *ModemStatus) TechCommands(tech string) map[string]string {
-	switch tech {
-	case "LTE":
-		return map[string]string{
-			"lte_mimo_layers": "AT+QNWCFG=\"lte_mimo_layers\"",
-			"lte_csi":         "AT+QNWCFG=\"lte_csi\"",
-			"lte_tx_pwr":      "AT+QNWCFG=\"lte_tx_pwr\"",
-		}
-	case "NR5G-SA":
-		return map[string]string{
-			"nr5g_mimo_layers":  "AT+QNWCFG=\"nr5g_mimo_layers\"",
-			"nr5g_csi":          "AT+QNWCFG=\"nr5g_csi\"",
-			"nr5g_ulMCS":        "AT+QNWCFG=\"nr5g_ulMCS\"",
-			"nr5g_dlMCS":        "AT+QNWCFG=\"nr5g_dlMCS\"",
-			"nr5g_tx_pwr":       "AT+QNWCFG=\"nr5g_tx_pwr\"",
-			"tdd_config_qcfg":   "AT+QCFG=\"tdd/config\"",
-			"tdd_config_qnwcfg": "AT+QNWCFG=\"tdd_config\"",
-			"nr5g_tdd_config":   "AT+QNWCFG=\"nr5g_tdd_config\"",
-		}
-	case "5G NSA":
-		return map[string]string{
-			"lte_mimo_layers":   "AT+QNWCFG=\"lte_mimo_layers\"",
-			"nr5g_mimo_layers":  "AT+QNWCFG=\"nr5g_mimo_layers\"",
-			"nr5g_csi":          "AT+QNWCFG=\"nr5g_csi\"",
-			"lte_csi":           "AT+QNWCFG=\"lte_csi\"",
-			"nr5g_ulMCS":        "AT+QNWCFG=\"nr5g_ulMCS\"",
-			"nr5g_dlMCS":        "AT+QNWCFG=\"nr5g_dlMCS\"",
-			"nr5g_tx_pwr":       "AT+QNWCFG=\"nr5g_tx_pwr\"",
-			"lte_tx_pwr":        "AT+QNWCFG=\"lte_tx_pwr\"",
-			"tdd_config_qcfg":   "AT+QCFG=\"tdd/config\"",
-			"tdd_config_qnwcfg": "AT+QNWCFG=\"tdd_config\"",
-			"nr5g_tdd_config":   "AT+QNWCFG=\"nr5g_tdd_config\"",
-		}
-	}
-	return nil
 }
 
 func parseRecursive(ctx *ParsingContext, status *ModemStatus, val reflect.Value) {

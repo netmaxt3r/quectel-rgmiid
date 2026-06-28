@@ -1,9 +1,11 @@
-package devicestatus
+package commands
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 type fakeConnection struct{}
@@ -25,6 +27,38 @@ func (f *fakeConnection) ExecuteATCommand(ctx *ParsingContext, cmd ATCommand) (s
 		return val, nil
 	}
 	return "", nil
+}
+
+type fakeInteractive struct {
+	frames []string
+	idx    int
+}
+
+func (fi *fakeInteractive) Write(data string) error {
+	return nil
+}
+
+func (fi *fakeInteractive) WriteCmd(cmd string) error {
+	return nil
+}
+
+func (fi *fakeInteractive) ReadFrame(timeout time.Duration) (string, error) {
+	if fi.idx >= len(fi.frames) {
+		return "", fmt.Errorf("EOF")
+	}
+	frame := fi.frames[fi.idx]
+	fi.idx++
+	return frame, nil
+}
+
+func (fi *fakeInteractive) Close() error {
+	return nil
+}
+
+func (f *fakeConnection) StartInteractive() (InteractiveSession, error) {
+	return &fakeInteractive{
+		frames: []string{">", "+CMGS: 1\r\n\r\nOK"},
+	}, nil
 }
 
 func stringToServiceTech(tech string) ServiceTech {
@@ -216,59 +250,7 @@ func TestSignalPercentage(t *testing.T) {
 	}
 }
 
-func TestParseSMSList(t *testing.T) {
-	parts := splitCSV(`1,"REC UNREAD","+1234567890",,"26/06/25,23:59:59+22"`)
-	if len(parts) < 5 {
-		t.Fatalf("expected 5 parts, got %d", len(parts))
-	}
-	if parts[1] != "REC UNREAD" || parts[2] != "+1234567890" {
-		t.Errorf("unexpected parse: %v", parts)
-	}
-}
-
 func TestParseAdvancedConnectionInfoHelpers(t *testing.T) {
-	t.Run("parseQNWCFGString", func(t *testing.T) {
-		tests := []struct {
-			input     string
-			paramName string
-			expected  []string
-		}{
-			{
-				input:     "+QNWCFG: \"nr5g_ulMCS\",1,28,8\r\n\r\nOK\r\n",
-				paramName: "nr5g_ulMCS",
-				expected:  []string{"1", "28", "8"},
-			},
-			{
-				input:     "+QNWCFG:nr5g_ulMCS,0\nOK",
-				paramName: "nr5g_ulMCS",
-				expected:  []string{"0"},
-			},
-			{
-				input:     "+QNWCFG: \"nr5g_csi\",24,2,15,3\n\nOK",
-				paramName: "nr5g_csi",
-				expected:  []string{"24", "2", "15", "3"},
-			},
-			{
-				input:     "ERROR",
-				paramName: "nr5g_ulMCS",
-				expected:  nil,
-			},
-		}
-
-		for _, tt := range tests {
-			got := parseQNWCFGString(tt.input, tt.paramName)
-			if len(got) != len(tt.expected) {
-				t.Errorf("parseQNWCFGString(%q, %q) = %v, want %v", tt.input, tt.paramName, got, tt.expected)
-				continue
-			}
-			for i := range got {
-				if got[i] != tt.expected[i] {
-					t.Errorf("parseQNWCFGString(%q, %q) = %v, want %v", tt.input, tt.paramName, got, tt.expected)
-					break
-				}
-			}
-		}
-	})
 
 	t.Run("formatMcs", func(t *testing.T) {
 		tests := []struct {

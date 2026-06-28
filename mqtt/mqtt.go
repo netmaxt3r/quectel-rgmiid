@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"rgmii/devicestatus"
+	"rgmii/commands"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -30,7 +30,7 @@ type Client struct {
 	client             mqtt.Client
 	discoveryPublished bool
 	mu                 sync.Mutex
-	lastStatus         *devicestatus.ModemStatus
+	lastStatus         *commands.ModemStatus
 }
 
 // NewClient instantiates a new MQTT client helper.
@@ -116,7 +116,7 @@ func (c *Client) retryConnectLoop() {
 }
 
 // PublishStatus is the callback function that will be registered with the Daemon.
-func (c *Client) PublishStatus(status devicestatus.ModemStatus) {
+func (c *Client) PublishStatus(status commands.ModemStatus) {
 	c.mu.Lock()
 	c.lastStatus = &status
 	shouldPublishDiscovery := !c.discoveryPublished
@@ -135,7 +135,7 @@ func (c *Client) PublishStatus(status devicestatus.ModemStatus) {
 	c.publishState(status)
 }
 
-func (c *Client) publishState(status devicestatus.ModemStatus) {
+func (c *Client) publishState(status commands.ModemStatus) {
 	topic := fmt.Sprintf("%s/status", c.cfg.Topic)
 	bytes, err := json.Marshal(status)
 	if err != nil {
@@ -148,7 +148,7 @@ func (c *Client) publishState(status devicestatus.ModemStatus) {
 	token.WaitTimeout(2 * time.Second)
 }
 
-func (c *Client) publishDiscovery(status devicestatus.ModemStatus) {
+func (c *Client) publishDiscovery(status commands.ModemStatus) {
 	deviceId := "rgmii_modem"
 	//if status.SimNumber != "" && status.SimNumber != "N/A" {
 	//	deviceId = "rgmii_" + sanitize(status.SimNumber)

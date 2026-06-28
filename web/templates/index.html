@@ -105,6 +105,14 @@
                     class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
                     Settings
                 </button>
+                {{ range .DynamicConfigs }}
+                <button id="tab-dyn-{{ .Name }}-btn" hx-get="/api/dynconfig/{{ .Name }}" hx-target="#tab-content" hx-swap="innerHTML"
+                    hx-trigger="click"
+                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=dynconfig&name={{ .Name }}'); htmx.process(document.getElementById('refresh-btn'));"
+                    class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
+                    {{ .Name }}
+                </button>
+                {{ end }}
             </div>
 
             <!-- HTMX dynamic target container -->

@@ -1,0 +1,102 @@
+<style>
+    .cell-loader.htmx-request {
+        display: flex !important;
+    }
+</style>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Dynamic Config Card Header -->
+    <div
+        class="md:col-span-2 glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-4 border border-white/5">
+        <div class="absolute -top-12 -right-12 h-32 w-32 bg-cyan-500/10 blur-3xl rounded-full"></div>
+        <div>
+            <div class="flex items-center gap-3">
+                <span
+                    class="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-xs font-bold text-cyan-400 tracking-wide uppercase">
+                    AT+{{ .Config.Command }}
+                </span>
+                <h3
+                    class="text-xl font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                    {{ .Config.Name }} Configuration
+                </h3>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">
+                Dynamic configurations queried from the modem. Get or set command parameters on demand.
+            </p>
+        </div>
+    </div>
+
+    <!-- Loop through subcommands -->
+    {{ range .Subcommands }}
+    <div
+        class="glass-panel rounded-2xl p-5 border border-white/5 flex flex-col justify-between gap-4 relative hover:border-cyan-500/25 transition-all duration-300">
+        <!-- Cell Loader Overlay -->
+        <div class="absolute inset-0 bg-slate-950/65 backdrop-blur-[1px] rounded-2xl items-center justify-center z-10 cell-loader htmx-indicator"
+            id="loader-{{ .Name | safeID }}">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+                <!-- Subcommand Name Badge -->
+                <span
+                    class="text-sm font-semibold font-mono text-cyan-300 bg-cyan-950/40 px-2 py-0.5 rounded-lg border border-cyan-800/30">
+                    {{ .Name }}
+                </span>
+            </div>
+
+            <!-- Command format description -->
+            <div class="bg-slate-950/50 rounded-xl p-3 border border-white/5 flex flex-col gap-1.5">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Format</span>
+                <code class="text-xs text-slate-300 font-mono break-all select-all">{{ .RawFormat }}</code>
+            </div>
+
+            <!-- Value Display Area -->
+            <div class="bg-slate-950/50 rounded-xl p-3 border border-white/5 flex items-center justify-between">
+                <div class="flex flex-col gap-0.5">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Current Value</span>
+                    <div id="val-display-{{ .Name | safeID }}">
+                        {{ $cachedVal := $.GetValue .Name }}
+                        {{ if $cachedVal }}
+                        <div class="flex flex-col gap-1">
+                            {{ range $cachedVal }}
+                            <span class="text-cyan-400 font-mono text-xs font-semibold select-all">{{ . }}</span>
+                            {{ end }}
+                        </div>
+                        {{ else }}
+                        <span class="text-slate-600 font-mono text-xs italic">Not queried yet</span>
+                        {{ end }}
+                    </div>
+                </div>
+                <button hx-post="/api/dynconfig/{{ $.Config.Name }}/get?subname={{ .Name }}"
+                    hx-target="#val-display-{{ .Name | safeID }}" hx-swap="innerHTML"
+                    hx-indicator="#loader-{{ .Name | safeID }}"
+                    class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/5 active:scale-95 transition">
+                    Get
+                </button>
+            </div>
+        </div>
+
+        <!-- Form to set value -->
+        <form hx-post="/api/dynconfig/{{ $.Config.Name }}/set?subname={{ .Name }}"
+            hx-target="#val-display-{{ .Name | safeID }}" hx-swap="innerHTML"
+            hx-indicator="#loader-{{ .Name | safeID }}" class="flex gap-2 mt-2">
+            <input type="text" name="args" required
+                class="flex-1 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-1.5 font-mono text-xs text-slate-200 placeholder-slate-700 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition">
+            <button type="submit"
+                class="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold active:scale-95 transition">
+                Set
+            </button>
+        </form>
+    </div>
+    {{ else }}
+    <div class="md:col-span-2 text-center py-12 text-slate-500">
+        <svg class="h-12 w-12 mx-auto mb-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+        </svg>
+        <p class="text-sm font-semibold">No subcommands found for this dynamic configuration.</p>
+    </div>
+    {{ end }}
+</div>

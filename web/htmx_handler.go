@@ -296,3 +296,90 @@ func (h *HTMXHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	h.server.destroySession(w, r)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
+func (h *HTMXHandler) HandleDynConfigs(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
+}
+func (h *HTMXHandler) HandleDynConfig(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if name == "" {
+		name = r.URL.Query().Get("name")
+	}
+	state, ok := h.server.daemon.GetDynamicConfigState(name)
+	if !ok {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte(`
+			<div class="glass-panel p-8 rounded-3xl text-center">
+				<svg class="h-12 w-12 mx-auto mb-4 text-slate-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376C1.83 15.018 1.83 14 2.87 14h18.26c1.04 0 1.68 1.018 1.16 1.976l-9.13 16.74c-.52.955-1.92.955-2.44 0l-9.13-16.74ZM12 17.25h.008v.008H12v-.008Z" />
+				</svg>
+				<h4 class="text-lg font-semibold text-slate-200 mb-2">Configuration State Not Found</h4>
+				<p class="text-sm text-slate-400">Make sure the daemon is connected to the modem via the network connection, as format definitions are only queried on connection events.</p>
+			</div>
+		`))
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.ExecuteTemplate(w, "dynconfig.html", state); err != nil {
+		slog.Error("Error executing dynconfig template", "error", err)
+		http.Error(w, "Template execution error", http.StatusInternalServerError)
+	}
+}
+
+func (h *HTMXHandler) HandleDynConfigGet(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	subname := r.URL.Query().Get("subname")
+
+	val, resp, err := h.server.daemon.QueryDynamicConfigValue(name, subname)
+	escapedResp := template.HTMLEscapeString(resp)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err != nil {
+		//w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `<div class="flex flex-col gap-1" title="Raw Response:&#10;%s">`, escapedResp)
+		fmt.Fprintf(w, `<span class="text-rose-500 font-mono text-xs font-semibold">Error: %s</span>`, template.HTMLEscapeString(err.Error()))
+		fmt.Fprintf(w, `</div>`)
+		return
+	}
+
+	fmt.Fprintf(w, `<div class="flex flex-col gap-1" title="Raw Response:&#10;%s">`, escapedResp)
+	if len(val) == 0 {
+		fmt.Fprintf(w, `<span class="text-cyan-400 font-mono text-xs font-semibold select-all">OK</span>`)
+	} else {
+		for _, line := range val {
+			fmt.Fprintf(w, `<span class="text-cyan-400 font-mono text-xs font-semibold select-all">%s</span>`, template.HTMLEscapeString(line))
+		}
+	}
+	fmt.Fprintf(w, `</div>`)
+}
+
+func (h *HTMXHandler) HandleDynConfigSet(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	subname := r.URL.Query().Get("subname")
+
+	if err := r.ParseForm(); err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, `<span class="text-rose-500 font-mono text-xs font-semibold">Error parsing form</span>`)
+		return
+	}
+	args := r.FormValue("args")
+
+	val, resp, err := h.server.daemon.SetDynamicConfigValue(name, subname, args)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `<span class="text-rose-500 font-mono text-xs font-semibold">Error: %s</span>`, template.HTMLEscapeString(err.Error()))
+		return
+	}
+
+	escapedResp := template.HTMLEscapeString(resp)
+	fmt.Fprintf(w, `<div class="flex flex-col gap-1" title="Raw Response:&#10;%s">`, escapedResp)
+	if len(val) == 0 {
+		fmt.Fprintf(w, `<span class="text-emerald-400 font-mono text-xs font-semibold select-all">OK</span>`)
+	} else {
+		for _, line := range val {
+			fmt.Fprintf(w, `<span class="text-emerald-400 font-mono text-xs font-semibold select-all">%s</span>`, template.HTMLEscapeString(line))
+		}
+	}
+	fmt.Fprintf(w, `</div>`)
+}

@@ -22,6 +22,9 @@ type mockDaemon struct {
 	SendSMSFunc        func(number, text string) error
 	DeleteSMSFunc      func(index int) error
 	PollSMSOnlyFunc    func()
+	GetDynamicConfigStateFunc   func(name string) (*commands.DynamicConfigState, bool)
+	QueryDynamicConfigValueFunc func(name, subname string) ([]string, string, error)
+	SetDynamicConfigValueFunc   func(name, subname, args string) ([]string, string, error)
 
 	Status            commands.ModemStatus
 	SetAPNErr         error
@@ -31,6 +34,14 @@ type mockDaemon struct {
 	SendCommandErr    error
 	SendSMSErr        error
 	DeleteSMSErr      error
+	GetDynamicConfigStateResp *commands.DynamicConfigState
+	GetDynamicConfigStateOk   bool
+	QueryDynamicConfigValueLines []string
+	QueryDynamicConfigValueRaw   string
+	QueryDynamicConfigValueErr   error
+	SetDynamicConfigValueLines   []string
+	SetDynamicConfigValueRaw     string
+	SetDynamicConfigValueErr     error
 
 	PollAllCalls   int
 	GetStatusCalls int
@@ -129,6 +140,31 @@ func (m *mockDaemon) PollSMSOnly() {
 	if m.PollSMSOnlyFunc != nil {
 		m.PollSMSOnlyFunc()
 	}
+}
+
+func (m *mockDaemon) GetDynamicConfigs() []string {
+	return []string{"qmap", "qcfg"}
+}
+
+func (m *mockDaemon) GetDynamicConfigState(name string) (*commands.DynamicConfigState, bool) {
+	if m.GetDynamicConfigStateFunc != nil {
+		return m.GetDynamicConfigStateFunc(name)
+	}
+	return m.GetDynamicConfigStateResp, m.GetDynamicConfigStateOk
+}
+
+func (m *mockDaemon) QueryDynamicConfigValue(name, subname string) ([]string, string, error) {
+	if m.QueryDynamicConfigValueFunc != nil {
+		return m.QueryDynamicConfigValueFunc(name, subname)
+	}
+	return m.QueryDynamicConfigValueLines, m.QueryDynamicConfigValueRaw, m.QueryDynamicConfigValueErr
+}
+
+func (m *mockDaemon) SetDynamicConfigValue(name, subname, args string) ([]string, string, error) {
+	if m.SetDynamicConfigValueFunc != nil {
+		return m.SetDynamicConfigValueFunc(name, subname, args)
+	}
+	return m.SetDynamicConfigValueLines, m.SetDynamicConfigValueRaw, m.SetDynamicConfigValueErr
 }
 
 func TestSessionAndTokenAuth(t *testing.T) {

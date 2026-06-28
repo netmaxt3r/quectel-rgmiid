@@ -52,7 +52,7 @@ func (a *APNConfigs) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp
 
 // SetAPN configures the APN on the modem for a specific PDP context.
 func SetAPN(conn ATIConnection, ctxID int, cfg APNConfig) error {
-	cmd := fmt.Sprintf("AT+CGDCONT=%d,\"%s\",\"%s\",\"\",0,0", ctxID, cfg.PDPType, cfg.APN)
+	cmd := fmt.Sprintf("AT+CGDCONT=%d,%q,%q,\"\",0,0", ctxID, cfg.PDPType, cfg.APN)
 	_, err := conn.ExecuteATCommand(
 		&ParsingContext{RawResponses: make(map[string]string)},
 		ATCommand{Command: cmd, Name: "setapn", NoCache: true},

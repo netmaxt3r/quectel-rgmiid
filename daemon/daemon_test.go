@@ -134,3 +134,38 @@ func TestSetATIDebug(t *testing.T) {
 		t.Errorf("expected debug to be false after SetATIDebug(false)")
 	}
 }
+
+func TestDaemonDynamicConfig(t *testing.T) {
+	d := NewDaemon("127.0.0.1:0", 1*time.Second)
+
+	cfg := commands.DynamicConfig{Name: "QMap", Command: "QMAP"}
+	subcommands := []commands.DynamicSubcommand{
+		{
+			Name:      "VLAN",
+			RawFormat: `"VLAN",(2-255),("enable","disable")`,
+			Arguments: []string{"(2-255)", `("enable","disable")`},
+		},
+	}
+	state := commands.NewDynamicConfigState(cfg, subcommands)
+	
+	d.dynConfigsState["qmap"] = state
+
+	gotState, ok := d.GetDynamicConfigState("QMap")
+	if !ok {
+		t.Fatalf("expected to get dynamic config state for QMap")
+	}
+	if gotState.Config.Command != "QMAP" {
+		t.Errorf("expected command to be QMAP, got %s", gotState.Config.Command)
+	}
+
+	gotState.SetValue("VLAN", "OK")
+	val := gotState.GetValue("VLAN")
+	if val != "OK" {
+		t.Errorf("expected value to be OK, got %q", val)
+	}
+
+	val2 := gotState.GetValue("vlan")
+	if val2 != "OK" {
+		t.Errorf("expected case-insensitive value to be OK, got %q", val2)
+	}
+}

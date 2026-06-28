@@ -24,6 +24,10 @@ type RequestHandler interface {
 	HandleLoginGet(w http.ResponseWriter, r *http.Request)
 	HandleLoginPost(w http.ResponseWriter, r *http.Request)
 	HandleLogout(w http.ResponseWriter, r *http.Request)
+	HandleDynConfigs(w http.ResponseWriter, r *http.Request)
+	HandleDynConfig(w http.ResponseWriter, r *http.Request)
+	HandleDynConfigGet(w http.ResponseWriter, r *http.Request)
+	HandleDynConfigSet(w http.ResponseWriter, r *http.Request)
 }
 
 // dispatch routes the incoming request to the htmx handler if the HX-Request or

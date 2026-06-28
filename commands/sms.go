@@ -93,7 +93,7 @@ func SendSMS(conn ATIConnection, number, text string) error {
 	defer session.Close()
 
 	// 1. Send AT+CMGS="<number>"\r\n
-	cmd1 := fmt.Sprintf("AT+CMGS=\"%s\"\r\n", number)
+	cmd1 := fmt.Sprintf("AT+CMGS=%q\r\n", number)
 	if err := session.WriteCmd(cmd1); err != nil {
 		return fmt.Errorf("failed to write SMS command: %w", err)
 	}

@@ -36,6 +36,7 @@ type Client struct {
 	urcChan     chan string
 	connectChan chan struct{}
 	Debug       bool
+	OnConnect   func()
 }
 
 // NewClient creates a new persistent RGMII Client.
@@ -106,6 +107,13 @@ func (c *Client) reconnectLoop(ctx context.Context) {
 		select {
 		case c.connectChan <- struct{}{}:
 		default:
+		}
+
+		c.mu.Lock()
+		onConnect := c.OnConnect
+		c.mu.Unlock()
+		if onConnect != nil {
+			go onConnect()
 		}
 
 		// Run reader loop (blocks until EOF / socket read error)

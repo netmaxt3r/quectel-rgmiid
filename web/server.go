@@ -29,7 +29,18 @@ var (
 		"add": func(a, b int) int {
 			return a + b
 		},
-	}).ParseFS(webFS, "templates/index.html", "templates/status.html", "templates/sms.html", "templates/console.html", "templates/login.html", "templates/settings.html"))
+		"safeID": func(s string) string {
+			var builder strings.Builder
+			for _, r := range s {
+				if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+					builder.WriteRune(r)
+				} else {
+					builder.WriteRune('_')
+				}
+			}
+			return builder.String()
+		},
+	}).ParseFS(webFS, "templates/index.html", "templates/status.html", "templates/sms.html", "templates/console.html", "templates/login.html", "templates/settings.html", "templates/dynconfig.html"))
 )
 
 // ModemDaemon defines the interface for communicating with the modem daemon.
@@ -43,6 +54,10 @@ type ModemDaemon interface {
 	SendSMS(number, text string) error
 	DeleteSMS(index int) error
 	PollSMSOnly()
+	GetDynamicConfigs() []string
+	GetDynamicConfigState(name string) (*commands.DynamicConfigState, bool)
+	QueryDynamicConfigValue(name, subname string) ([]string, string, error)
+	SetDynamicConfigValue(name, subname, args string) ([]string, string, error)
 }
 
 // Server coordinates routing HTTP requests.
@@ -128,6 +143,12 @@ func (s *Server) routes(mux *http.ServeMux) {
 		apiMux.HandleFunc("GET /api/debug", s.dispatch(RequestHandler.HandleDebug))
 	}
 
+	// Dynamic Config
+	apiMux.HandleFunc("GET /api/dynconfig", s.dispatch(RequestHandler.HandleDynConfigs))
+	apiMux.HandleFunc("GET /api/dynconfig/{name}", s.dispatch(RequestHandler.HandleDynConfig))
+	apiMux.HandleFunc("POST /api/dynconfig/{name}/get", s.dispatch(RequestHandler.HandleDynConfigGet))
+	apiMux.HandleFunc("POST /api/dynconfig/{name}/set", s.dispatch(RequestHandler.HandleDynConfigSet))
+
 	// Mount apiMux with authentication and CSRF protection
 	mux.Handle("/api/", s.sessionOrTokenAuth(s.csrfProtect(apiMux)))
 }
@@ -149,7 +170,8 @@ func (s *Server) renderTemplate(w http.ResponseWriter, status int, name string, 
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
-		"AuthEnabled": s.authUser != "" && s.authPass != "",
+		"AuthEnabled":    s.authUser != "" && s.authPass != "",
+		"DynamicConfigs": commands.GetDynamicConfigs(),
 	}
 	s.renderTemplate(w, http.StatusOK, "index.html", data)
 }
@@ -164,6 +186,8 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		s.htmxHandler.HandleConsole(w, r)
 	case "settings":
 		s.htmxHandler.HandleSettingsPage(w, r)
+	case "dynconfig":
+		s.htmxHandler.HandleDynConfig(w, r)
 	default:
 		s.htmxHandler.HandleStatus(w, r)
 	}

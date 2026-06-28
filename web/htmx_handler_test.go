@@ -178,4 +178,54 @@ func TestHTMXHandlerRoutes(t *testing.T) {
 			t.Errorf("expected console template to render, got %q", body)
 		}
 	})
+
+	t.Run("HTMX DynConfig Page", func(t *testing.T) {
+		cfg := commands.DynamicConfig{Name: "QMap", Command: "QMAP"}
+		state := commands.NewDynamicConfigState(cfg, []commands.DynamicSubcommand{
+			{Name: "VLAN", RawFormat: `"VLAN",(2-255)`},
+		})
+		d := &mockDaemon{
+			GetDynamicConfigStateResp: state,
+			GetDynamicConfigStateOk:   true,
+		}
+		s := NewServer(d, "", "", "", "")
+		mux := http.NewServeMux()
+		s.routes(mux)
+
+		req := httptest.NewRequest("GET", "/api/dynconfig/QMap", nil)
+		req.Header.Set("HX-Request", "true")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "QMap Configuration") || !strings.Contains(body, "VLAN") {
+			t.Errorf("expected body to contain QMap VLAN details, got %q", body)
+		}
+	})
+
+	t.Run("HTMX DynConfig Get", func(t *testing.T) {
+		d := &mockDaemon{
+			QueryDynamicConfigValueLines: []string{"0"},
+			QueryDynamicConfigValueRaw:   `+QMAP: "VLAN",0` + "\nOK",
+		}
+		s := NewServer(d, "", "", "", "")
+		mux := http.NewServeMux()
+		s.routes(mux)
+
+		req := httptest.NewRequest("POST", "/api/dynconfig/QMap/get?subname=VLAN", nil)
+		req.Header.Set("HX-Request", "true")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "text-cyan-400") || !strings.Contains(body, "0") {
+			t.Errorf("expected value output, got %q", body)
+		}
+	})
 }

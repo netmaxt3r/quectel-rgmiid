@@ -299,3 +299,65 @@ func (h *JSONHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		"message": "Logout successful",
 	})
 }
+func (h *JSONHandler) HandleDynConfigs(w http.ResponseWriter, r *http.Request) {
+	configs := h.server.daemon.GetDynamicConfigs()
+	h.writeJSON(w, http.StatusOK, configs)
+}
+func (h *JSONHandler) HandleDynConfig(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	state, ok := h.server.daemon.GetDynamicConfigState(name)
+	if !ok {
+		h.writeError(w, http.StatusNotFound, "dynamic config not found")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, state)
+}
+
+func (h *JSONHandler) HandleDynConfigGet(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	subname := r.URL.Query().Get("subname")
+
+	val, resp, err := h.server.daemon.QueryDynamicConfigValue(name, subname)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	h.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"value": val,
+		"raw":   resp,
+	})
+}
+
+func (h *JSONHandler) HandleDynConfigSet(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	subname := r.URL.Query().Get("subname")
+
+	var args string
+	if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		var req struct {
+			Args string `json:"args"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			h.writeError(w, http.StatusBadRequest, "Invalid JSON body")
+			return
+		}
+		args = req.Args
+	} else {
+		if err := r.ParseForm(); err != nil {
+			h.writeError(w, http.StatusBadRequest, "Invalid form data")
+			return
+		}
+		args = r.FormValue("args")
+	}
+
+	val, resp, err := h.server.daemon.SetDynamicConfigValue(name, subname, args)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	h.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"value":  val,
+		"raw":    resp,
+	})
+}

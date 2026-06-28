@@ -2,9 +2,11 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -15,18 +17,20 @@ import (
 
 // Daemon coordinates polling the modem and dispatching custom commands.
 type Daemon struct {
-	client       *client.Client
-	status       commands.ModemStatus
-	statusMutex  sync.RWMutex
-	cmdMutex     sync.Mutex // Ensures serial execution of AT commands
-	pollInterval time.Duration
-	callbacks    []func(commands.ModemStatus)
-	callbacksMu  sync.RWMutex
+	client          *client.Client
+	status          commands.ModemStatus
+	statusMutex     sync.RWMutex
+	cmdMutex        sync.Mutex // Ensures serial execution of AT commands
+	pollInterval    time.Duration
+	callbacks       []func(commands.ModemStatus)
+	callbacksMu     sync.RWMutex
+	dynConfigsState map[string]*commands.DynamicConfigState
+	dynStateMutex   sync.RWMutex
 }
 
 // NewDaemon creates a new Daemon service.
 func NewDaemon(addr string, pollInterval time.Duration) *Daemon {
-	return &Daemon{
+	d := &Daemon{
 		client:       client.NewClient(addr),
 		pollInterval: pollInterval,
 		status: commands.ModemStatus{
@@ -34,8 +38,11 @@ func NewDaemon(addr string, pollInterval time.Duration) *Daemon {
 			ConnectionStatus: "Offline",
 			RawResponses:     make(map[string]string),
 		},
-		callbacks: []func(commands.ModemStatus){},
+		callbacks:       []func(commands.ModemStatus){},
+		dynConfigsState: make(map[string]*commands.DynamicConfigState),
 	}
+	d.client.OnConnect = d.handleClientConnect
+	return d
 }
 
 // OnStatusUpdate registers a callback to be executed whenever a status poll completes.
@@ -294,4 +301,105 @@ func (d *Daemon) SendSMS(number, text string) error {
 // SetATIDebug enables or disables real-time raw AT command logging.
 func (d *Daemon) SetATIDebug(enabled bool) {
 	d.client.Debug = enabled
+}
+
+func (d *Daemon) handleClientConnect() {
+	slog.Info("Daemon connected/reconnected to modem. Querying dynamic configurations...")
+	configs := commands.GetDynamicConfigs()
+	states := make(map[string]*commands.DynamicConfigState)
+
+	for _, cfg := range configs {
+		cmdStr := fmt.Sprintf("AT+%s=?", cfg.Command)
+		resp, err := d.SendCommand(cmdStr)
+		if err != nil {
+			slog.Error("Failed to query format for dynamic config", "name", cfg.Name, "command", cmdStr, "error", err)
+			continue
+		}
+
+		subcommands := commands.ParseDynamicConfigResponse(cfg.Command, resp)
+		states[strings.ToLower(cfg.Name)] = commands.NewDynamicConfigState(cfg, subcommands)
+	}
+
+	d.dynStateMutex.Lock()
+	d.dynConfigsState = states
+	d.dynStateMutex.Unlock()
+	slog.Info("Dynamic configurations loaded", "count", len(states))
+}
+func (d *Daemon) GetDynamicConfigs() []string {
+	d.dynStateMutex.RLock()
+	defer d.dynStateMutex.RUnlock()
+	return slices.Collect(maps.Keys(d.dynConfigsState))
+}
+func (d *Daemon) GetDynamicConfigState(name string) (*commands.DynamicConfigState, bool) {
+	d.dynStateMutex.RLock()
+	defer d.dynStateMutex.RUnlock()
+	state, ok := d.dynConfigsState[strings.ToLower(name)]
+	return state, ok
+}
+func parseDynamicConfigResponse(name, subname, resp string) ([]string, error) {
+	lines := strings.Split(resp, "\n")
+	if len(lines) > 0 {
+		last := lines[len(lines)-1]
+		last = strings.TrimSpace(last)
+		if strings.HasPrefix(last, "ERROR") {
+			return nil, errors.New(last)
+		}
+	}
+	writeIdx := 0
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			lines[writeIdx] = trimmed
+			writeIdx++
+		}
+	}
+	lines = lines[:writeIdx]
+	rspPfx := fmt.Sprintf("+%s: \"%s\",", name, subname)
+	if rspPfx != "" {
+		writeIdx = 0
+		for _, line := range lines {
+			if strings.HasPrefix(line, rspPfx) {
+				lines[writeIdx] = strings.Trim(line[len(rspPfx):], "\r ")
+				writeIdx++
+			}
+		}
+		lines = lines[:writeIdx]
+	}
+	return lines, nil
+}
+func (d *Daemon) QueryDynamicConfigValue(name, subname string) ([]string, string, error) {
+	state, ok := d.GetDynamicConfigState(name)
+	if !ok {
+		return nil, "", fmt.Errorf("dynamic configuration %q not found", name)
+	}
+
+	cmdStr := fmt.Sprintf("AT+%s=%q", state.Config.Command, subname)
+	resp, err := d.SendCommand(cmdStr)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	trimmed := strings.TrimSpace(resp)
+	lines, err := parseDynamicConfigResponse(name, subname, trimmed)
+	if err != nil {
+		return nil, resp, err
+	}
+	state.SetValue(subname, lines)
+	return lines, resp, nil
+}
+
+func (d *Daemon) SetDynamicConfigValue(name, subname, args string) ([]string, string, error) {
+	state, ok := d.GetDynamicConfigState(name)
+	if !ok {
+		return nil, "", fmt.Errorf("dynamic configuration %q not found", name)
+	}
+
+	cmdStr := fmt.Sprintf("AT+%s=%q,%s", state.Config.Command, subname, args)
+	resp, err := d.SendCommand(cmdStr)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	// Auto-query the new value to update cache
+	return d.QueryDynamicConfigValue(name, subname)
 }

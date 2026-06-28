@@ -17,6 +17,7 @@
         .htmx-indicator {
             display: none !important;
         }
+
         .htmx-request .htmx-indicator,
         .htmx-request.htmx-indicator {
             display: block !important;
@@ -26,7 +27,9 @@
 
 <body class="h-full flex flex-col antialiased" hx-indicator="#global-loading">
     <!-- Global Loading Indicator Bar -->
-    <div id="global-loading" class="htmx-indicator fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-teal-400 to-indigo-500 z-50 animate-pulse"></div>
+    <div id="global-loading"
+        class="htmx-indicator fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-teal-400 to-indigo-500 z-50 animate-pulse">
+    </div>
     <!-- Navbar -->
     <header class="border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center glass-panel">
         <div class="flex items-center gap-3">
@@ -52,7 +55,7 @@
                 <p class="text-xs text-slate-400">Modem Address</p>
                 <p class="text-sm font-mono text-cyan-400" id="modem-addr-display">Connecting...</p>
             </div>
-            <button id="refresh-btn" hx-get="/api/refresh?tab=status" hx-target="#tab-content" hx-swap="innerHTML"
+            <button id="refresh-btn" hx-get="/refresh?tab=status" hx-target="#tab-content" hx-swap="innerHTML"
                 class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 transition flex items-center gap-2 border border-white/5">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -78,46 +81,35 @@
         <div class="flex flex-col gap-8">
             <!-- Navigation Tabs -->
             <div class="flex border-b border-white/5 pb-px gap-6 mb-2">
-                <button id="tab-status-btn" 
-                    hx-get="/api/status" 
-                    hx-target="#tab-content" 
-                    hx-swap="innerHTML"
+                <button id="tab-status-btn" hx-get="/api/status" hx-target="#tab-content" hx-swap="innerHTML"
                     hx-trigger="click"
-                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/api/refresh?tab=status'); htmx.process(document.getElementById('refresh-btn'));"
+                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=status'); htmx.process(document.getElementById('refresh-btn'));"
                     class="tab-btn border-b-2 border-cyan-500 pb-3 text-sm font-semibold text-white px-1 transition-all duration-200 focus:outline-none">
                     Status
                 </button>
-                <button id="tab-sms-btn" 
-                    hx-get="/api/sms" 
-                    hx-target="#tab-content" 
-                    hx-swap="innerHTML"
+                <button id="tab-sms-btn" hx-get="/api/sms" hx-target="#tab-content" hx-swap="innerHTML"
                     hx-trigger="click"
-                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/api/refresh?tab=sms'); htmx.process(document.getElementById('refresh-btn'));"
+                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=sms'); htmx.process(document.getElementById('refresh-btn'));"
                     class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
                     SMS
                 </button>
-                <button id="tab-console-btn" 
-                    hx-get="/api/console" 
-                    hx-target="#tab-content" 
-                    hx-swap="innerHTML"
+                <button id="tab-console-btn" hx-get="/api/console" hx-target="#tab-content" hx-swap="innerHTML"
                     hx-trigger="click"
-                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/api/refresh?tab=console'); htmx.process(document.getElementById('refresh-btn'));"
+                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=console'); htmx.process(document.getElementById('refresh-btn'));"
                     class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
                     Console
                 </button>
-                <button id="tab-settings-btn" 
-                    hx-get="/api/settings" 
-                    hx-target="#tab-content" 
-                    hx-swap="innerHTML"
+                <button id="tab-settings-btn" hx-get="/api/settings" hx-target="#tab-content" hx-swap="innerHTML"
                     hx-trigger="click"
-                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/api/refresh?tab=settings'); htmx.process(document.getElementById('refresh-btn'));"
+                    onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=settings'); htmx.process(document.getElementById('refresh-btn'));"
                     class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
                     Settings
                 </button>
             </div>
 
             <!-- HTMX dynamic target container -->
-            <div id="tab-content" hx-get="/api/status" hx-trigger="load" hx-swap="innerHTML" class="flex flex-col gap-8">
+            <div id="tab-content" hx-get="/api/status" hx-trigger="load" hx-swap="innerHTML"
+                class="flex flex-col gap-8">
                 <!-- Initial Loading skeleton -->
                 <div class="glass-panel p-8 rounded-2xl flex flex-col items-center justify-center min-h-[300px]">
                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mb-4"></div>

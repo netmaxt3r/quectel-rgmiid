@@ -9,8 +9,127 @@ import (
 	"testing"
 	"time"
 
-	"rgmii/daemon"
+	"rgmii/commands"
 )
+
+type mockDaemon struct {
+	PollAllFunc        func()
+	GetStatusFunc      func() commands.ModemStatus
+	SetAPNFunc         func(ctxID int, cfg commands.APNConfig) error
+	ActivateDataFunc   func(ctxID int) error
+	DeactivateDataFunc func(ctxID int) error
+	SendCommandFunc    func(cmd string) (string, error)
+	SendSMSFunc        func(number, text string) error
+	DeleteSMSFunc      func(index int) error
+	PollSMSOnlyFunc    func()
+
+	Status            commands.ModemStatus
+	SetAPNErr         error
+	ActivateDataErr   error
+	DeactivateDataErr error
+	SendCommandResp   string
+	SendCommandErr    error
+	SendSMSErr        error
+	DeleteSMSErr      error
+
+	PollAllCalls   int
+	GetStatusCalls int
+	SetAPNCalls    []struct {
+		CtxID int
+		Cfg   commands.APNConfig
+	}
+	ActivateDataCalls   []int
+	DeactivateDataCalls []int
+	SendCommandCalls    []string
+	SendSMSCalls        []struct {
+		Number string
+		Text   string
+	}
+	DeleteSMSCalls   []int
+	PollSMSOnlyCalls int
+}
+
+func (m *mockDaemon) PollAll() {
+	m.PollAllCalls++
+	if m.PollAllFunc != nil {
+		m.PollAllFunc()
+	}
+}
+
+func (m *mockDaemon) GetStatus() commands.ModemStatus {
+	m.GetStatusCalls++
+	if m.GetStatusFunc != nil {
+		return m.GetStatusFunc()
+	}
+	if m.Status.RawResponses == nil {
+		m.Status.RawResponses = make(map[string]string)
+	}
+	if m.Status.APNConfigMap == nil {
+		m.Status.APNConfigMap = make(map[int]commands.APNConfig)
+	}
+	return m.Status
+}
+
+func (m *mockDaemon) SetAPN(ctxID int, cfg commands.APNConfig) error {
+	m.SetAPNCalls = append(m.SetAPNCalls, struct {
+		CtxID int
+		Cfg   commands.APNConfig
+	}{ctxID, cfg})
+	if m.SetAPNFunc != nil {
+		return m.SetAPNFunc(ctxID, cfg)
+	}
+	return m.SetAPNErr
+}
+
+func (m *mockDaemon) ActivateData(ctxID int) error {
+	m.ActivateDataCalls = append(m.ActivateDataCalls, ctxID)
+	if m.ActivateDataFunc != nil {
+		return m.ActivateDataFunc(ctxID)
+	}
+	return m.ActivateDataErr
+}
+
+func (m *mockDaemon) DeactivateData(ctxID int) error {
+	m.DeactivateDataCalls = append(m.DeactivateDataCalls, ctxID)
+	if m.DeactivateDataFunc != nil {
+		return m.DeactivateDataFunc(ctxID)
+	}
+	return m.DeactivateDataErr
+}
+
+func (m *mockDaemon) SendCommand(cmd string) (string, error) {
+	m.SendCommandCalls = append(m.SendCommandCalls, cmd)
+	if m.SendCommandFunc != nil {
+		return m.SendCommandFunc(cmd)
+	}
+	return m.SendCommandResp, m.SendCommandErr
+}
+
+func (m *mockDaemon) SendSMS(number, text string) error {
+	m.SendSMSCalls = append(m.SendSMSCalls, struct {
+		Number string
+		Text   string
+	}{number, text})
+	if m.SendSMSFunc != nil {
+		return m.SendSMSFunc(number, text)
+	}
+	return m.SendSMSErr
+}
+
+func (m *mockDaemon) DeleteSMS(index int) error {
+	m.DeleteSMSCalls = append(m.DeleteSMSCalls, index)
+	if m.DeleteSMSFunc != nil {
+		return m.DeleteSMSFunc(index)
+	}
+	return m.DeleteSMSErr
+}
+
+func (m *mockDaemon) PollSMSOnly() {
+	m.PollSMSOnlyCalls++
+	if m.PollSMSOnlyFunc != nil {
+		m.PollSMSOnlyFunc()
+	}
+}
 
 func TestSessionAndTokenAuth(t *testing.T) {
 	// Create a mock handler
@@ -188,104 +307,6 @@ func TestSessionAndTokenAuth(t *testing.T) {
 	})
 }
 
-func TestCmdJSON(t *testing.T) {
-	t.Run("wrong method", func(t *testing.T) {
-		s := NewServer(nil, "", "", "", "")
-		mux := http.NewServeMux()
-		s.routes(mux)
-
-		req := httptest.NewRequest("GET", "/api/cmd/json", nil)
-		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusMethodNotAllowed {
-			t.Errorf("expected 405, got %d", rec.Code)
-		}
-	})
-
-	t.Run("missing content-type", func(t *testing.T) {
-		s := NewServer(nil, "", "", "", "")
-		req := httptest.NewRequest("POST", "/api/cmd/json", bytes.NewBufferString("{}"))
-		rec := httptest.NewRecorder()
-
-		s.handleCmdJSON(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-		var resp cmdResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			t.Fatal(err)
-		}
-		if resp.Success != false || resp.Error != "Content-Type must be application/json" {
-			t.Errorf("unexpected response: %+v", resp)
-		}
-	})
-
-	t.Run("invalid json request", func(t *testing.T) {
-		s := NewServer(nil, "", "", "", "")
-		req := httptest.NewRequest("POST", "/api/cmd/json", bytes.NewBufferString("{invalid"))
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-
-		s.handleCmdJSON(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-		var resp cmdResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			t.Fatal(err)
-		}
-		if resp.Success != false || resp.Error != "Invalid JSON request" {
-			t.Errorf("unexpected response: %+v", resp)
-		}
-	})
-
-	t.Run("empty command", func(t *testing.T) {
-		s := NewServer(nil, "", "", "", "")
-		body, _ := json.Marshal(cmdRequest{Cmd: ""})
-		req := httptest.NewRequest("POST", "/api/cmd/json", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-
-		s.handleCmdJSON(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-		var resp cmdResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			t.Fatal(err)
-		}
-		if resp.Success != false || resp.Error != "Command is empty" {
-			t.Errorf("unexpected response: %+v", resp)
-		}
-	})
-
-	t.Run("daemon offline error", func(t *testing.T) {
-		d := daemon.NewDaemon("127.0.0.1:0", 0)
-		s := NewServer(d, "", "", "", "")
-		body, _ := json.Marshal(cmdRequest{Cmd: "AT+CSQ"})
-		req := httptest.NewRequest("POST", "/api/cmd/json", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-
-		s.handleCmdJSON(rec, req)
-
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected 500, got %d", rec.Code)
-		}
-		var resp cmdResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			t.Fatal(err)
-		}
-		if resp.Success != false || resp.Error != "modem connection offline" {
-			t.Errorf("unexpected response: %+v", resp)
-		}
-	})
-}
-
 func TestCSRFProtect(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -314,6 +335,7 @@ func TestCSRFProtect(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/cmd", nil)
 		req.Host = "localhost:8080"
 		req.Header.Set("Origin", "http://localhost:8080")
+		req.Header.Set("HX-Request", "true")
 		rec := httptest.NewRecorder()
 
 		csrfHandler.ServeHTTP(rec, req)
@@ -330,6 +352,7 @@ func TestCSRFProtect(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/cmd", nil)
 		req.Host = "localhost:8080"
 		req.Header.Set("Origin", "http://attacker.com")
+		req.Header.Set("HX-Request", "true")
 		rec := httptest.NewRecorder()
 
 		csrfHandler.ServeHTTP(rec, req)
@@ -345,6 +368,7 @@ func TestCSRFProtect(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/api/cmd", nil)
 		req.Host = "localhost:8080"
+		req.Header.Set("HX-Request", "true")
 		rec := httptest.NewRecorder()
 
 		csrfHandler.ServeHTTP(rec, req)
@@ -388,7 +412,7 @@ func TestDebugEndpoint(t *testing.T) {
 
 	t.Run("QUECTEL_DEBUG set to 1", func(t *testing.T) {
 		t.Setenv("QUECTEL_DEBUG", "1")
-		d := daemon.NewDaemon("", 0)
+		d := &mockDaemon{}
 		s := NewServer(d, "", "", "", "")
 		mux := http.NewServeMux()
 		s.routes(mux)
@@ -406,109 +430,129 @@ func TestDebugEndpoint(t *testing.T) {
 	})
 }
 
-func TestDeleteSMS(t *testing.T) {
-	t.Run("missing index", func(t *testing.T) {
-		s := NewServer(nil, "", "", "", "")
-		req := httptest.NewRequest("POST", "/api/sms/delete", nil)
+func TestLoginLogout(t *testing.T) {
+	t.Run("HTMX login and logout flow", func(t *testing.T) {
+		s := NewServer(nil, "", "admin", "password", "")
+		mux := http.NewServeMux()
+		s.routes(mux)
+
+		// 1. GET /login should render the login page
+		req := httptest.NewRequest("GET", "/login", nil)
+		req.Header.Set("Accept", "text/html")
 		rec := httptest.NewRecorder()
-
-		s.handleDeleteSMS(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-	})
-
-	t.Run("invalid index format", func(t *testing.T) {
-		s := NewServer(nil, "", "", "", "")
-		req := httptest.NewRequest("POST", "/api/sms/delete", strings.NewReader("index=abc"))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		rec := httptest.NewRecorder()
-
-		s.handleDeleteSMS(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-	})
-
-	t.Run("daemon offline returns 500", func(t *testing.T) {
-		d := daemon.NewDaemon("127.0.0.1:0", 0)
-		s := NewServer(d, "", "", "", "")
-		req := httptest.NewRequest("POST", "/api/sms/delete", strings.NewReader("index=3"))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		rec := httptest.NewRecorder()
-
-		s.handleDeleteSMS(rec, req)
-
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected 500, got %d", rec.Code)
-		}
-		if !strings.Contains(rec.Body.String(), "Delete failed:") {
-			t.Errorf("expected error message to contain 'Delete failed:', got %q", rec.Body.String())
-		}
-	})
-}
-
-func TestSendSMS(t *testing.T) {
-	t.Run("missing number or text", func(t *testing.T) {
-		s := NewServer(nil, "", "", "", "")
-		req := httptest.NewRequest("POST", "/api/sms/send", strings.NewReader("number=&text="))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		rec := httptest.NewRecorder()
-
-		s.handleSendSMS(rec, req)
-
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected 500, got %d", rec.Code)
-		}
-	})
-
-	t.Run("daemon offline returns 500", func(t *testing.T) {
-		d := daemon.NewDaemon("127.0.0.1:0", 0)
-		s := NewServer(d, "", "", "", "")
-		req := httptest.NewRequest("POST", "/api/sms/send", strings.NewReader("number=+1234567890&text=hello"))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		rec := httptest.NewRecorder()
-
-		s.handleSendSMS(rec, req)
-
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected 500, got %d", rec.Code)
-		}
-	})
-}
-
-func TestConsoleEndpoint(t *testing.T) {
-	t.Run("renders console template", func(t *testing.T) {
-		s := NewServer(nil, "", "", "", "")
-		req := httptest.NewRequest("GET", "/api/console", nil)
-		rec := httptest.NewRecorder()
-
-		s.handleConsole(rec, req)
-
+		mux.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
-			t.Errorf("expected 200, got %d", rec.Code)
+			t.Errorf("GET /login expected 200, got %d", rec.Code)
 		}
-		if !strings.Contains(rec.Body.String(), "Interactive AT Console") {
-			t.Errorf("expected body to contain console title, got %q", rec.Body.String())
+		if !strings.Contains(rec.Body.String(), "RGMII Control Panel") {
+			t.Errorf("expected body to contain title, got %q", rec.Body.String())
+		}
+
+		// 2. POST /login with invalid credentials should return 401
+		req = httptest.NewRequest("POST", "/login", strings.NewReader("username=admin&password=wrong"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept", "text/html")
+		rec = httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("POST /login invalid expected 401, got %d", rec.Code)
+		}
+
+		// 3. POST /login with valid credentials should redirect to /
+		req = httptest.NewRequest("POST", "/login", strings.NewReader("username=admin&password=password"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept", "text/html")
+		rec = httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("POST /login valid expected 303, got %d", rec.Code)
+		}
+		cookie := rec.Result().Cookies()
+		if len(cookie) == 0 || cookie[0].Name != sessionCookieName {
+			t.Errorf("expected session cookie, got none")
+		}
+
+		// 4. GET /logout should clear the session cookie
+		req = httptest.NewRequest("GET", "/logout", nil)
+		req.Header.Set("Accept", "text/html")
+		req.AddCookie(cookie[0])
+		rec = httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("GET /logout expected 303, got %d", rec.Code)
+		}
+		logoutCookies := rec.Result().Cookies()
+		if len(logoutCookies) == 0 || logoutCookies[0].Value != "" {
+			t.Errorf("expected empty session cookie, got %+v", logoutCookies)
 		}
 	})
 
-	t.Run("handleCmd sets failure header on error", func(t *testing.T) {
-		d := daemon.NewDaemon("127.0.0.1:0", 0)
-		s := NewServer(d, "", "", "", "")
-		req := httptest.NewRequest("POST", "/api/cmd", strings.NewReader("cmd=ATI"))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	t.Run("JSON login and logout flow", func(t *testing.T) {
+		s := NewServer(nil, "", "admin", "password", "")
+		mux := http.NewServeMux()
+		s.routes(mux)
+
+		// 1. GET /login should return JSON guide
+		req := httptest.NewRequest("GET", "/login", nil)
 		rec := httptest.NewRecorder()
-
-		s.handleCmd(rec, req)
-
+		mux.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
-			t.Errorf("expected 200, got %d", rec.Code)
+			t.Errorf("GET /login JSON expected 200, got %d", rec.Code)
 		}
-		if rec.Header().Get("X-Cmd-Failed") != "true" {
-			t.Errorf("expected X-Cmd-Failed header to be set, got %q", rec.Header().Get("X-Cmd-Failed"))
+		var getResp map[string]string
+		if err := json.NewDecoder(rec.Body).Decode(&getResp); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(getResp["message"], "Please POST") {
+			t.Errorf("unexpected JSON response: %+v", getResp)
+		}
+
+		// 2. POST /login with invalid credentials should return 401 JSON
+		body, _ := json.Marshal(map[string]string{"username": "admin", "password": "wrong"})
+		req = httptest.NewRequest("POST", "/login", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec = httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("POST /login JSON invalid expected 401, got %d", rec.Code)
+		}
+		var errResp map[string]interface{}
+		json.NewDecoder(rec.Body).Decode(&errResp)
+		if errResp["error"] != "Invalid username or password" {
+			t.Errorf("unexpected error payload: %+v", errResp)
+		}
+
+		// 3. POST /login with valid credentials should return 200 and set cookie
+		body, _ = json.Marshal(map[string]string{"username": "admin", "password": "password"})
+		req = httptest.NewRequest("POST", "/login", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec = httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("POST /login JSON valid expected 200, got %d", rec.Code)
+		}
+		var okResp map[string]interface{}
+		json.NewDecoder(rec.Body).Decode(&okResp)
+		if okResp["status"] != "success" {
+			t.Errorf("unexpected success payload: %+v", okResp)
+		}
+		cookie := rec.Result().Cookies()
+		if len(cookie) == 0 || cookie[0].Name != sessionCookieName {
+			t.Errorf("expected session cookie in JSON response, got none")
+		}
+
+		// 4. GET /logout should return 200 JSON and clear cookie
+		req = httptest.NewRequest("GET", "/logout", nil)
+		req.AddCookie(cookie[0])
+		rec = httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("GET /logout JSON expected 200, got %d", rec.Code)
+		}
+		var logoutResp map[string]interface{}
+		json.NewDecoder(rec.Body).Decode(&logoutResp)
+		if logoutResp["status"] != "success" {
+			t.Errorf("unexpected logout payload: %+v", logoutResp)
 		}
 	})
 }

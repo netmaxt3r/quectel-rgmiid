@@ -17,12 +17,37 @@
         </div>
 
         <!-- Feedback area -->
-        <div id="apn-feedback" class="mb-4"></div>
+        <div id="apn-feedback" class="mb-4">
+            {{ if .Error }}
+            <div
+                class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-sm flex items-center gap-3 shadow-lg shadow-rose-950/20">
+                <svg class="h-5 w-5 shrink-0 text-rose-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+                <span class="font-medium select-text">{{ .Error }}</span>
+            </div>
+            {{ end }}
+
+            {{ if .Success }}
+            <div
+                class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-sm flex items-center gap-3 shadow-lg shadow-emerald-950/20">
+                <svg class="h-5 w-5 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                <span class="font-medium select-text">{{ .Success }}</span>
+            </div>
+            {{ end }}
+        </div>
 
         <!-- APN Contexts List -->
         <div id="apn-contexts-container" class="flex flex-col gap-4">
             {{ range $cid, $cfg := .APNConfigMap }}
-            <div class="bg-slate-900/50 border border-white/5 rounded-2xl p-5 relative overflow-hidden"
+            <form hx-post="/api/apn/{{ $cid }}" hx-target="#tab-content" hx-swap="innerHTML"
+                class="bg-slate-900/50 border border-white/5 rounded-2xl p-5 relative overflow-hidden"
                 id="apn-ctx-{{ $cid }}">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
@@ -50,12 +75,14 @@
                     </div>
                     <div class="flex gap-2">
                         {{ if $cfg.Active }}
-                        <button onclick="deactivateData({{ $cid }})"
+                        <button type="button" hx-post="/api/data/deactivate/{{ $cid }}" hx-target="#tab-content"
+                            hx-swap="innerHTML"
                             class="px-3 py-1.5 text-xs font-medium rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 active:scale-95 transition">
                             Deactivate
                         </button>
                         {{ else }}
-                        <button onclick="activateData({{ $cid }})"
+                        <button type="button" hx-post="/api/data/activate/{{ $cid }}" hx-target="#tab-content"
+                            hx-swap="innerHTML"
                             class="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-95 transition">
                             Activate
                         </button>
@@ -66,13 +93,13 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div class="flex flex-col gap-1">
                         <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">APN</label>
-                        <input type="text" id="apn-name-{{ $cid }}" value="{{ $cfg.APN }}"
+                        <input type="text" id="apn-name-{{ $cid }}" name="apn" value="{{ $cfg.APN }}"
                             class="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 font-mono text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition placeholder-slate-500"
                             placeholder="e.g. internet">
                     </div>
                     <div class="flex flex-col gap-1">
                         <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">PDP Type</label>
-                        <select id="apn-pdptype-{{ $cid }}"
+                        <select id="apn-pdptype-{{ $cid }}" name="pdp_type"
                             class="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition">
                             <option value="IP" {{ if eq $cfg.PDPType "IP" }}selected{{ end }}>IP (IPv4)</option>
                             <option value="IPV6" {{ if eq $cfg.PDPType "IPV6" }}selected{{ end }}>IPV6</option>
@@ -82,25 +109,25 @@
                     </div>
                     <div class="flex flex-col gap-1">
                         <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Username</label>
-                        <input type="text" id="apn-user-{{ $cid }}" value="{{ $cfg.Username }}"
+                        <input type="text" id="apn-user-{{ $cid }}" name="username" value="{{ $cfg.Username }}"
                             class="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 font-mono text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition placeholder-slate-500"
                             placeholder="Optional">
                     </div>
                     <div class="flex flex-col gap-1">
                         <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Password</label>
-                        <input type="password" id="apn-pass-{{ $cid }}" value="{{ $cfg.Password }}"
+                        <input type="password" id="apn-pass-{{ $cid }}" name="password" value="{{ $cfg.Password }}"
                             class="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 font-mono text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition placeholder-slate-500"
                             placeholder="Optional">
                     </div>
                 </div>
 
                 <div class="mt-4 flex justify-end">
-                    <button onclick="saveAPN({{ $cid }})"
+                    <button type="submit"
                         class="px-4 py-2 text-sm font-medium rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white active:scale-95 transition shadow-lg shadow-cyan-500/10">
                         Save Context {{ $cid }}
                     </button>
                 </div>
-            </div>
+            </form>
             {{ else }}
             <div class="text-center py-8 text-slate-500">
                 <svg class="h-8 w-8 mx-auto mb-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
@@ -149,67 +176,3 @@
         </div>
     </div>
 </div>
-
-<script>
-    function showFeedback(type, msg) {
-        const fb = document.getElementById('apn-feedback');
-        if (!fb) return;
-        const cls = type === 'error'
-            ? 'p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-sm flex items-center gap-3 shadow-lg shadow-rose-950/20'
-            : 'p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-sm flex items-center gap-3 shadow-lg shadow-emerald-950/20';
-        fb.innerHTML = '<div class="' + cls + '"><span class="font-medium">' + msg + '</span></div>';
-        setTimeout(() => { fb.innerHTML = ''; }, 5000);
-    }
-
-    function saveAPN(cid) {
-        const apn = document.getElementById('apn-name-' + cid).value;
-        const pdpType = document.getElementById('apn-pdptype-' + cid).value;
-        const username = document.getElementById('apn-user-' + cid).value;
-        const password = document.getElementById('apn-pass-' + cid).value;
-
-        fetch('/api/apn/set?id=' + cid, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apn: apn, pdp_type: pdpType, username: username, password: password })
-        })
-            .then(resp => resp.json().then(data => ({ ok: resp.ok, data })))
-            .then(({ ok, data }) => {
-                if (ok) {
-                    showFeedback('success', 'APN for context ' + cid + ' saved successfully.');
-                } else {
-                    showFeedback('error', 'Failed to save APN: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(err => {
-                showFeedback('error', 'Network error: ' + err.message);
-            });
-    }
-
-    function activateData(cid) {
-        fetch('/api/data/activate?id=' + cid, { method: 'POST' })
-            .then(resp => resp.json().then(data => ({ ok: resp.ok, data })))
-            .then(({ ok, data }) => {
-                if (ok) {
-                    showFeedback('success', 'Data context ' + cid + ' activated.');
-                    htmx.ajax('GET', '/api/settings', { target: '#tab-content', swap: 'innerHTML' });
-                } else {
-                    showFeedback('error', 'Activation failed: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(err => { showFeedback('error', 'Network error: ' + err.message); });
-    }
-
-    function deactivateData(cid) {
-        fetch('/api/data/deactivate?id=' + cid, { method: 'POST' })
-            .then(resp => resp.json().then(data => ({ ok: resp.ok, data })))
-            .then(({ ok, data }) => {
-                if (ok) {
-                    showFeedback('success', 'Data context ' + cid + ' deactivated.');
-                    htmx.ajax('GET', '/api/settings', { target: '#tab-content', swap: 'innerHTML' });
-                } else {
-                    showFeedback('error', 'Deactivation failed: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(err => { showFeedback('error', 'Network error: ' + err.message); });
-    }
-</script>

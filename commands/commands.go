@@ -70,7 +70,7 @@ type ModemStatus struct {
 	Tech             string            `json:"tech"`             // LTE, NR5G-SA, 5G NSA, etc.
 	LastUpdated      time.Time         `json:"last_updated"`
 	ConnectionStatus string            `json:"connection_status"` // Connected, Offline
-	RawResponses     map[string]string `json:"raw_responses"`
+	RawResponses     map[string]string `json:"-"`
 	SessionUptime    string            `json:"session_uptime"`
 }
 

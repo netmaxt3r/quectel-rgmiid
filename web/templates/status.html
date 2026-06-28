@@ -147,7 +147,7 @@
         <div class="flex justify-between items-start mt-1.5 border-t border-white/5 pt-1.5">
             <span class="text-sm text-slate-400">IPv4 Address</span>
             <div class="flex flex-col gap-1 items-end text-right">
-                {{ range splitIPs .IPAddress }}
+                {{ range .IPAddress }}
                 <span class="text-xs font-mono text-slate-300 select-all">{{ . }}</span>
                 {{ end }}
             </div>
@@ -157,7 +157,7 @@
         <div class="flex justify-between items-start mt-1.5 border-t border-white/5 pt-1.5">
             <span class="text-sm text-slate-400">IPv6 Address</span>
             <div class="flex flex-col gap-1 items-end text-right max-w-[200px]">
-                {{ range splitIPs .IPv6Address }}
+                {{ range .IPv6Address }}
                 <span class="text-xs font-mono text-cyan-400 select-all leading-normal break-all">{{ . }}</span>
                 {{ end }}
             </div>

@@ -8,8 +8,8 @@ import (
 
 // CGPADDR represents the response of the AT+CGPADDR command.
 type CGPADDR struct {
-	IPAddress   string `json:"ip_address"`
-	IPv6Address string `json:"ipv6_address"`
+	IPAddress   []string `json:"ip_address"`
+	IPv6Address []string `json:"ipv6_address"`
 }
 
 func (c *CGPADDR) Command(ctx *ParsingContext) ATCommand {
@@ -33,6 +33,15 @@ func (c *CGPADDR) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []
 	}
 }
 
+func appendUnique(slice []string, val string) []string {
+	for _, item := range slice {
+		if item == val {
+			return slice
+		}
+	}
+	return append(slice, val)
+}
+
 func (c *CGPADDR) parseIPAddress(ipStr string) {
 	ipStr = strings.Trim(strings.TrimSpace(ipStr), "\"")
 	if ipStr == "" {
@@ -42,7 +51,7 @@ func (c *CGPADDR) parseIPAddress(ipStr string) {
 	parts := strings.Split(ipStr, ".")
 	if len(parts) == 4 {
 		if ipStr != "0.0.0.0" {
-			c.IPAddress = appendIP(c.IPAddress, ipStr)
+			c.IPAddress = appendUnique(c.IPAddress, ipStr)
 		}
 	} else if len(parts) == 16 {
 		var octets [16]byte
@@ -64,13 +73,13 @@ func (c *CGPADDR) parseIPAddress(ipStr string) {
 				octets[12], octets[13], octets[14], octets[15])
 			netIP := net.ParseIP(ipv6)
 			if netIP != nil && !netIP.IsUnspecified() {
-				c.IPv6Address = appendIP(c.IPv6Address, netIP.String())
+				c.IPv6Address = appendUnique(c.IPv6Address, netIP.String())
 			}
 		}
 	} else if strings.Contains(ipStr, ":") {
 		netIP := net.ParseIP(ipStr)
 		if netIP != nil && !netIP.IsUnspecified() {
-			c.IPv6Address = appendIP(c.IPv6Address, netIP.String())
+			c.IPv6Address = appendUnique(c.IPv6Address, netIP.String())
 		}
 	}
 }

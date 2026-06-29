@@ -17,7 +17,7 @@ func (m *LteMimoLayers) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (m *LteMimoLayers) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (m *LteMimoLayers) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	m.MimoLayers = "Unknown"
 	if len(resp) > 0 {
 		cleaned := strings.ReplaceAll(resp[0], " ", "")
@@ -42,7 +42,7 @@ func (m *Nr5gMimoLayers) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (m *Nr5gMimoLayers) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (m *Nr5gMimoLayers) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	m.MimoLayers = "Unknown"
 	if len(resp) > 0 {
 		cleaned := strings.ReplaceAll(resp[0], " ", "")

@@ -17,7 +17,7 @@ func (c *COPS) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (c *COPS) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (c *COPS) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	c.Carrier = "Unknown"
 	for _, line := range resp {
 		parts := strings.Split(line, ",")

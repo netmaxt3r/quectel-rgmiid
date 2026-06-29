@@ -14,7 +14,7 @@ func (t *LteTxPwr) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (t *LteTxPwr) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (t *LteTxPwr) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	t.TxPwr = "N/A"
 	if len(resp) > 0 {
 		args := strings.Split(resp[0], ",")
@@ -39,7 +39,7 @@ func (t *Nr5gTxPwr) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (t *Nr5gTxPwr) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (t *Nr5gTxPwr) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	t.TxPwr = "N/A"
 	if len(resp) > 0 {
 		args := strings.Split(resp[0], ",")

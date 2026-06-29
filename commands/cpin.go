@@ -17,7 +17,7 @@ func (c *CPIN) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (c *CPIN) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (c *CPIN) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 
 	c.SimState = "UNKNOWN"
 	for _, line := range resp {

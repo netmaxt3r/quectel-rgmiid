@@ -54,9 +54,9 @@ func TestParseRegistration(t *testing.T) {
 					}
 				}
 			}
-			reg.ParseRespone(ctx, nil, resp, raw)
+			reg.ParseResponse(ctx, nil, resp, raw)
 			if reg.NetworkRegistration != tt.wantReg {
-				t.Errorf("Registration.ParseRespone() = %q, want %q", reg.NetworkRegistration, tt.wantReg)
+				t.Errorf("Registration.ParseResponse() = %q, want %q", reg.NetworkRegistration, tt.wantReg)
 			}
 		})
 	}

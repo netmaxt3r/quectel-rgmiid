@@ -19,7 +19,7 @@ type ATCommand struct {
 }
 type ATField interface {
 	Command(ctx *ParsingContext) ATCommand
-	ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string)
+	ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string)
 }
 
 type InteractiveSession interface {
@@ -110,7 +110,7 @@ func RunParser(ctx *ParsingContext, status *ModemStatus, field ATField) {
 			}
 			lines = lines[:writeIdx]
 		}
-		field.ParseRespone(ctx, status, lines, resp)
+		field.ParseResponse(ctx, status, lines, resp)
 	}
 }
 func (s *ModemStatus) Parse(ctx *ParsingContext) {
@@ -154,30 +154,6 @@ func (s *ModemStatus) Parse(ctx *ParsingContext) {
 		s.ConnectionStatus = "Offline"
 		s.LastUpdated = time.Now()
 		s.SessionUptime = "Offline"
-	}
-
-	// Set connection state
-	if qeng, ok := ctx.RawResponses["QENG"]; ok {
-		lines := strings.Split(qeng, "\n")
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "+QENG:") && strings.Contains(line, "servingcell") {
-				parts := strings.Split(line[6:], ",")
-				for i := range parts {
-					parts[i] = strings.Trim(strings.TrimSpace(parts[i]), "\"")
-				}
-				if len(parts) >= 2 {
-					state := parts[1]
-					if state == "NOCONN" {
-						s.ConnectionState = "Connected (Idle)"
-					} else if state == "CONNECT" {
-						s.ConnectionState = "Connected (Active)"
-					} else {
-						s.ConnectionState = state
-					}
-				}
-			}
-		}
 	}
 
 }

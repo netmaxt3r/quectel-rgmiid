@@ -86,6 +86,10 @@ func main() {
 	d := daemon.NewDaemon(*modemAddr, time.Duration(*pollInterval)*time.Second)
 	d.SetATIDebug(*atiDebug)
 
+	// Create cancelable context for graceful daemon shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Configure MQTT if active
 	if *mqttServer != "" {
 		mqttClient, err := mqtt.NewClient(mqtt.Config{
@@ -102,7 +106,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := mqttClient.Connect(); err != nil {
+		if err := mqttClient.Connect(ctx); err != nil {
 			slog.Warn("MQTT initial connection attempt failed, will auto-retry in background", "error", err)
 		}
 
@@ -110,17 +114,13 @@ func main() {
 		d.OnStatusUpdate(mqttClient.PublishStatus)
 	}
 
-	// Create cancelable context for graceful daemon shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// Start background poller
 	go d.Start(ctx)
 
 	// Start web dashboard
 	srv := web.NewServer(d, *modemAddr, *authUser, *authPass, *apiKey)
 	go func() {
-		if err := srv.Start(*webPort); err != nil {
+		if err := srv.Start(*webPort); err != nil && err.Error() != "http: Server closed" {
 			slog.Error("Web server crashed", "error", err)
 			os.Exit(1)
 		}
@@ -134,8 +134,13 @@ func main() {
 	slog.Info("Shutting down gracefully...")
 	cancel()
 
-	// Wait momentarily to ensure resources are freed
-	time.Sleep(300 * time.Millisecond)
+	// Gracefully shut down the HTTP server with a deadline
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Error("HTTP server shutdown error", "error", err)
+	}
+
 	slog.Info("Daemon terminated.")
 }
 

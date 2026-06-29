@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -165,6 +166,10 @@ func (m *mockDaemon) SetDynamicConfigValue(name, subname, args string) ([]string
 		return m.SetDynamicConfigValueFunc(name, subname, args)
 	}
 	return m.SetDynamicConfigValueLines, m.SetDynamicConfigValueRaw, m.SetDynamicConfigValueErr
+}
+
+func (m *mockDaemon) StartInteractive() (commands.InteractiveSession, error) {
+	return nil, fmt.Errorf("not implemented in mock")
 }
 
 func TestSessionAndTokenAuth(t *testing.T) {

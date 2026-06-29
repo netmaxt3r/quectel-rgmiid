@@ -156,7 +156,7 @@ func (sc *ServingCell) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (sc *ServingCell) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (sc *ServingCell) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	sc.AccessTechnology = "Unknown"
 	sc.ServiceTech = Unknown
 	defer func() {

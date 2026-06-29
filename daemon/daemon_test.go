@@ -70,7 +70,7 @@ func TestParseSMSList(t *testing.T) {
 	}
 
 	smsList := &commands.SMSList{}
-	smsList.ParseRespone(nil, nil, lines, resp)
+	smsList.ParseResponse(nil, nil, lines, resp)
 	messages := smsList.SMS
 
 	if len(messages) != 2 {
@@ -118,7 +118,7 @@ func TestSendSMS_Offline(t *testing.T) {
 
 func TestSetATIDebug(t *testing.T) {
 	d := NewDaemon("127.0.0.1:0", 1*time.Second)
-	
+
 	// Default should be false
 	if d.client.Debug {
 		t.Errorf("expected default debug to be false, got true")
@@ -147,7 +147,7 @@ func TestDaemonDynamicConfig(t *testing.T) {
 		},
 	}
 	state := commands.NewDynamicConfigState(cfg, subcommands)
-	
+
 	d.dynConfigsState["qmap"] = state
 
 	gotState, ok := d.GetDynamicConfigState("QMap")

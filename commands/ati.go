@@ -18,7 +18,7 @@ func (bc *ATI) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (a *ATI) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, _ string) {
+func (a *ATI) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, _ string) {
 	for _, line := range resp {
 		if line == "" || strings.HasPrefix(line, "OK") || strings.HasPrefix(line, "ATI") {
 			continue

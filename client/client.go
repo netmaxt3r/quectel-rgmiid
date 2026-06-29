@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"rgmii/commands"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ type Client struct {
 	connectChan chan struct{}
 	Debug       bool
 	OnConnect   func()
+	cmdMu       sync.Mutex // Serializes all commands and interactive sessions
 }
 
 // NewClient creates a new persistent RGMII Client.
@@ -85,7 +87,10 @@ func (c *Client) reconnectLoop(ctx context.Context) {
 		}
 
 		slog.Info("Connecting to modem", "address", c.addr)
-		conn, err := net.DialTimeout("tcp", c.addr, 5*time.Second)
+		var dialer net.Dialer
+		dialCtx, dialCancel := context.WithTimeout(ctx, 5*time.Second)
+		conn, err := dialer.DialContext(dialCtx, "tcp", c.addr)
+		dialCancel()
 		if err != nil {
 			slog.Error("Modem connection failed", "error", err, "retry_after", "3s")
 			select {
@@ -144,7 +149,7 @@ func (c *Client) readerLoop(s *Session) {
 
 		if n > 0 {
 			if c.Debug {
-				slog.Debug("AT RECV", "raw", cleanQuote(string(readBuf[:n])))
+				slog.Debug("AT RECV", "raw", string(readBuf[:n]))
 			}
 			buf = append(buf, readBuf[:n]...)
 
@@ -224,6 +229,9 @@ func (c *Client) sendCommand(cmd string, timeout time.Duration) (string, error) 
 		return "", fmt.Errorf("command length %d exceeds maximum limit of 2048 bytes", len(cmd))
 	}
 
+	c.cmdMu.Lock()
+	defer c.cmdMu.Unlock()
+
 	c.mu.Lock()
 	s := c.session
 	if s == nil {
@@ -233,25 +241,24 @@ func (c *Client) sendCommand(cmd string, timeout time.Duration) (string, error) 
 	c.mu.Unlock()
 
 	// Drain any stale messages from response buffer
-	for len(s.responseChan) > 0 {
-		<-s.responseChan
+	for {
+		select {
+		case <-s.responseChan:
+		default:
+			goto drained
+		}
 	}
+drained:
 
 	// Frame the request: [0xa4][len_high][len_low][payload]
-	cmdBytes := []byte(cmd)
-	cmdLen := len(cmdBytes)
-	req := make([]byte, 3+cmdLen)
-	req[0] = 0xa4
-	req[1] = byte((cmdLen >> 8) & 0xff)
-	req[2] = byte(cmdLen & 0xff)
-	copy(req[3:], cmdBytes)
+	req := framePayload(0xa4, []byte(cmd))
 
 	// Send payload
 	if err := s.conn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 		return "", fmt.Errorf("set write deadline failed: %w", err)
 	}
 	if c.Debug {
-		slog.Debug("AT SEND", "raw", cleanQuote(string(req)))
+		slog.Debug("AT SEND", "raw", string(req))
 	}
 	if _, err := s.conn.Write(req); err != nil {
 		return "", fmt.Errorf("write command failed: %w", err)
@@ -265,7 +272,7 @@ func (c *Client) sendCommand(cmd string, timeout time.Duration) (string, error) 
 		select {
 		case frame := <-s.responseChan:
 			output.WriteString(frame)
-			if isTerminalResponse(frame) {
+			if commands.IsTerminalResponse(frame) {
 				return output.String(), nil
 			}
 		case <-s.disconnectChan:
@@ -276,42 +283,41 @@ func (c *Client) sendCommand(cmd string, timeout time.Duration) (string, error) 
 	}
 }
 
-func isTerminalResponse(s string) bool {
-	trimmed := strings.TrimSpace(s)
-	if strings.HasSuffix(trimmed, "OK") {
-		return true
-	}
-	if strings.HasSuffix(trimmed, "ERROR") {
-		return true
-	}
-	if strings.Contains(trimmed, "+CME ERROR:") {
-		return true
-	}
-	if strings.Contains(trimmed, "+CMS ERROR:") {
-		return true
-	}
-	return false
-}
-
 func isValidHeader(b byte) bool {
 	return b == 0xa4 || b == 0xa0 || b == 0xe0 || b == 0xe4
 }
 
-func cleanQuote(s string) string {
-	return s
+func framePayload(header byte, payload []byte) []byte {
+	payloadLen := len(payload)
+	frame := make([]byte, 3+payloadLen)
+	frame[0] = header
+	frame[1] = byte((payloadLen >> 8) & 0xff)
+	frame[2] = byte(payloadLen & 0xff)
+	copy(frame[3:], payload)
+	return frame
 }
 
 type ClientInteractive struct {
-	client *Client
-	s      *Session
+	client      *Client
+	s           *Session
+	closeOnce   sync.Once
+	idleTimer   *time.Timer
+	idleTimeout time.Duration
+}
+
+func (ci *ClientInteractive) resetTimer() {
+	if ci.idleTimer != nil {
+		ci.idleTimer.Reset(ci.idleTimeout)
+	}
 }
 
 func (ci *ClientInteractive) Write(data string) error {
-	if err := ci.s.conn.SetWriteDeadline(time.Now().Add(10*time.Second)); err != nil {
+	ci.resetTimer()
+	if err := ci.s.conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
 		return fmt.Errorf("set write deadline failed: %w", err)
 	}
 	if ci.client.Debug {
-		slog.Debug("AT SEND", "raw", cleanQuote(data))
+		slog.Debug("AT SEND", "raw", string(data))
 	}
 	if _, err := ci.s.conn.Write([]byte(data)); err != nil {
 		return fmt.Errorf("write failed: %w", err)
@@ -320,19 +326,14 @@ func (ci *ClientInteractive) Write(data string) error {
 }
 
 func (ci *ClientInteractive) WriteCmd(cmd string) error {
-	cmdBytes := []byte(cmd)
-	cmdLen := len(cmdBytes)
-	req := make([]byte, 3+cmdLen)
-	req[0] = 0xa4
-	req[1] = byte((cmdLen >> 8) & 0xff)
-	req[2] = byte(cmdLen & 0xff)
-	copy(req[3:], cmdBytes)
+	ci.resetTimer()
+	req := framePayload(0xa4, []byte(cmd))
 
-	if err := ci.s.conn.SetWriteDeadline(time.Now().Add(10*time.Second)); err != nil {
+	if err := ci.s.conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
 		return fmt.Errorf("set write deadline failed: %w", err)
 	}
 	if ci.client.Debug {
-		slog.Debug("AT SEND", "raw", cleanQuote(string(req)))
+		slog.Debug("AT SEND", "raw", string(req))
 	}
 	if _, err := ci.s.conn.Write(req); err != nil {
 		return fmt.Errorf("write failed: %w", err)
@@ -341,6 +342,7 @@ func (ci *ClientInteractive) WriteCmd(cmd string) error {
 }
 
 func (ci *ClientInteractive) ReadFrame(timeout time.Duration) (string, error) {
+	ci.resetTimer()
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
@@ -353,23 +355,47 @@ func (ci *ClientInteractive) ReadFrame(timeout time.Duration) (string, error) {
 }
 
 func (ci *ClientInteractive) Close() error {
+	ci.closeOnce.Do(func() {
+		if ci.idleTimer != nil {
+			ci.idleTimer.Stop()
+		}
+		ci.client.cmdMu.Unlock()
+	})
 	return nil
 }
 
 // StartInteractive begins an interactive session on the client connection.
 func (c *Client) StartInteractive() (*ClientInteractive, error) {
+	c.cmdMu.Lock()
+
 	c.mu.Lock()
 	s := c.session
 	if s == nil {
 		c.mu.Unlock()
+		c.cmdMu.Unlock()
 		return nil, fmt.Errorf("modem connection offline")
 	}
 	c.mu.Unlock()
 
 	// Drain any stale messages from response buffer
-	for len(s.responseChan) > 0 {
-		<-s.responseChan
+	for {
+		select {
+		case <-s.responseChan:
+		default:
+			goto interactiveDrained
+		}
 	}
+interactiveDrained:
 
-	return &ClientInteractive{client: c, s: s}, nil
+	ci := &ClientInteractive{
+		client:      c,
+		s:           s,
+		idleTimeout: 30 * time.Second,
+	}
+	ci.idleTimer = time.AfterFunc(ci.idleTimeout, func() {
+		slog.Warn("Interactive session idle timeout reached, closing session")
+		ci.Close()
+	})
+
+	return ci, nil
 }

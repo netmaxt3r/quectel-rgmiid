@@ -12,7 +12,7 @@ func TestParseNr5gTddInfo(t *testing.T) {
 	}
 
 	tddInfo := &Nr5gTddInfo{}
-	tddInfo.ParseRespone(nil, nil, resp, "")
+	tddInfo.ParseResponse(nil, nil, resp, "")
 
 	expectedPatterns := []TddPattern{
 		{

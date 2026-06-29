@@ -242,7 +242,7 @@ func TestSignalPercentage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			csq := &CSQ{}
-			csq.ParseRespone(nil, nil, []string{tt.input}, tt.input)
+			csq.ParseResponse(nil, nil, []string{tt.input}, tt.input)
 			if csq.SignalPercentage != tt.wantPerc {
 				t.Errorf("SignalPercentage = %v, want %v", csq.SignalPercentage, tt.wantPerc)
 			}

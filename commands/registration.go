@@ -36,7 +36,7 @@ func (r *Registration) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (r *Registration) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (r *Registration) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	r.NetworkRegistration = "Not Registered"
 	if len(resp) > 0 {
 		line := resp[0]

@@ -60,12 +60,12 @@ func TestParseCGPADDR(t *testing.T) {
 				}
 			}
 			cg := &CGPADDR{}
-			cg.ParseRespone(nil, nil, resp, tt.input)
+			cg.ParseResponse(nil, nil, resp, tt.input)
 			if !slicesEqual(cg.IPAddress, tt.wantIPv4) {
-				t.Errorf("CGPADDR.ParseRespone() IPAddress = %v, want %v", cg.IPAddress, tt.wantIPv4)
+				t.Errorf("CGPADDR.ParseResponse() IPAddress = %v, want %v", cg.IPAddress, tt.wantIPv4)
 			}
 			if !slicesEqual(cg.IPv6Address, tt.wantIPv6) {
-				t.Errorf("CGPADDR.ParseRespone() IPv6Address = %v, want %v", cg.IPv6Address, tt.wantIPv6)
+				t.Errorf("CGPADDR.ParseResponse() IPv6Address = %v, want %v", cg.IPv6Address, tt.wantIPv6)
 			}
 		})
 	}

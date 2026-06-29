@@ -14,7 +14,7 @@ func (m *Nr5gUlMcs) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (m *Nr5gUlMcs) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (m *Nr5gUlMcs) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	m.UlMcs = "N/A"
 	if len(resp) > 0 {
 		args := strings.Split(resp[0], ",")
@@ -39,7 +39,7 @@ func (m *Nr5gDlMcs) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (m *Nr5gDlMcs) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (m *Nr5gDlMcs) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	m.DlMcs = "N/A"
 	if len(resp) > 0 {
 		args := strings.Split(resp[0], ",")

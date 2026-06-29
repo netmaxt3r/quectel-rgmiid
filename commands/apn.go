@@ -26,7 +26,7 @@ func (a *APNConfigs) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (a *APNConfigs) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (a *APNConfigs) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	// Expected response lines (prefix already stripped):
 	//   <cid>,"<PDP_type>","<APN>","<addr>",<d_comp>,<h_comp>
 	if status.APNConfigMap == nil {
@@ -91,7 +91,7 @@ func (c *CGACTStatus) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (c *CGACTStatus) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (c *CGACTStatus) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	// Expected response lines (prefix already stripped):
 	//   <cid>,<state>   where state is 0 or 1
 	if status.APNConfigMap == nil {

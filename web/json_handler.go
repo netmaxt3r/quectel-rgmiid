@@ -170,7 +170,7 @@ func (h *JSONHandler) HandleSMSSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if number == "" || text == "" {
-		h.writeError(w, http.StatusInternalServerError, "Recipient number and message text are required")
+		h.writeError(w, http.StatusBadRequest, "Recipient number and message text are required")
 		return
 	}
 

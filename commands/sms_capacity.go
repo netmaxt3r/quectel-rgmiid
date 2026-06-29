@@ -18,7 +18,7 @@ func (c *SMSCapacity) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (c *SMSCapacity) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (c *SMSCapacity) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	// Expected response: +CPMS: "SM",<used>,<total>,"SM",<used>,<total>,"SM",<used>,<total>
 	for _, line := range resp {
 		parts := SplitCSV(line)

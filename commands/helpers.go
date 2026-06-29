@@ -7,20 +7,6 @@ import (
 	"strings"
 )
 
-func appendIP(current, newIP string) string {
-	if current == "" {
-		return newIP
-	}
-	parts := strings.Split(current, ", ")
-	for _, part := range parts {
-		if part == newIP {
-			return current
-		}
-	}
-	return current + ", " + newIP
-}
-
-
 func formatMcs(args []string) string {
 	if len(args) == 0 {
 		return "N/A"

@@ -17,7 +17,7 @@ func (c *CNUM) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (c *CNUM) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (c *CNUM) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	c.SimNumber = "N/A"
 	for _, line := range resp {
 		parts := SplitCSV(line)

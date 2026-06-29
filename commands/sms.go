@@ -26,7 +26,7 @@ func (s *SMSList) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (s *SMSList) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (s *SMSList) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	s.SMS = nil
 	var current *SMSMessage
 

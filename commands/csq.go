@@ -29,7 +29,7 @@ func (c *CSQ) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (c *CSQ) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (c *CSQ) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	c.SignalCSQ = 99
 	c.SignalPercentage = 0
 

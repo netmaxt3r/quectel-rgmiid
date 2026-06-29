@@ -44,9 +44,9 @@ func TestParseCSQ(t *testing.T) {
 					}
 				}
 			}
-			csq.ParseRespone(nil, nil, resp, tt.input)
+			csq.ParseResponse(nil, nil, resp, tt.input)
 			if csq.SignalCSQ != tt.wantCSQ {
-				t.Errorf("CSQ.ParseRespone() CSQ = %v, want %v", csq.SignalCSQ, tt.wantCSQ)
+				t.Errorf("CSQ.ParseResponse() CSQ = %v, want %v", csq.SignalCSQ, tt.wantCSQ)
 			}
 		})
 	}

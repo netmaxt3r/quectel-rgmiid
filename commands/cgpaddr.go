@@ -20,7 +20,7 @@ func (c *CGPADDR) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (c *CGPADDR) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (c *CGPADDR) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	for _, line := range resp {
 		parts := strings.Split(line, ",")
 		if len(parts) < 2 {

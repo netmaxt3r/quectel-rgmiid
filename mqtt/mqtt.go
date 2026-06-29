@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -88,29 +89,35 @@ func NewClient(cfg Config) (*Client, error) {
 // Connect starts the connection to the MQTT broker.
 // If the initial connection attempt fails, it spawns a background goroutine
 // to retry connecting until successful.
-func (c *Client) Connect() error {
+func (c *Client) Connect(ctx context.Context) error {
 	token := c.client.Connect()
 	if token.Wait() && token.Error() != nil {
 		err := token.Error()
 		slog.Error("MQTT initial connection attempt failed, starting background retry loop", "error", err)
-		go c.retryConnectLoop()
+		go c.retryConnectLoop(ctx)
 		return err
 	}
 	return nil
 }
 
-func (c *Client) retryConnectLoop() {
+func (c *Client) retryConnectLoop(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		slog.Info("Retrying initial MQTT connection", "server", c.cfg.Server)
-		token := c.client.Connect()
-		if token.Wait() && token.Error() == nil {
-			slog.Info("MQTT connection successfully established via background retry", "server", c.cfg.Server)
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("MQTT background retry loop stopped due to context cancellation")
 			return
-		} else if token.Error() != nil {
-			slog.Warn("MQTT background retry attempt failed", "error", token.Error())
+		case <-ticker.C:
+			slog.Info("Retrying initial MQTT connection", "server", c.cfg.Server)
+			token := c.client.Connect()
+			if token.Wait() && token.Error() == nil {
+				slog.Info("MQTT connection successfully established via background retry", "server", c.cfg.Server)
+				return
+			} else if token.Error() != nil {
+				slog.Warn("MQTT background retry attempt failed", "error", token.Error())
+			}
 		}
 	}
 }
@@ -149,11 +156,11 @@ func (c *Client) publishState(status commands.ModemStatus) {
 }
 
 func (c *Client) publishDiscovery(status commands.ModemStatus) {
-	deviceId := "rgmii_modem"
+	// deviceId := "rgmii_modem"
 	//if status.SimNumber != "" && status.SimNumber != "N/A" {
 	//	deviceId = "rgmii_" + sanitize(status.SimNumber)
 	//} else {
-	deviceId = "rgmii_" + sanitize(c.cfg.ModemAddr)
+	deviceId := "rgmii_" + sanitize(c.cfg.ModemAddr)
 	//}
 
 	stateTopic := fmt.Sprintf("%s/status", c.cfg.Topic)

@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"embed"
 	"html/template"
 	"log/slog"
@@ -54,6 +55,7 @@ type ModemDaemon interface {
 	SendSMS(number, text string) error
 	DeleteSMS(index int) error
 	PollSMSOnly()
+	StartInteractive() (commands.InteractiveSession, error)
 	GetDynamicConfigs() []string
 	GetDynamicConfigState(name string) (*commands.DynamicConfigState, bool)
 	QueryDynamicConfigValue(name, subname string) ([]string, string, error)
@@ -71,6 +73,7 @@ type Server struct {
 	sessMutex   sync.RWMutex
 	jsonHandler RequestHandler
 	htmxHandler RequestHandler
+	httpServer  *http.Server
 }
 
 // NewServer creates a new HTTP dashboard server.
@@ -94,14 +97,48 @@ func (s *Server) Start(port string) error {
 	s.routes(mux)
 	slog.Info("Starting web control panel", "url", "http://localhost:"+port)
 
-	server := &http.Server{
+	s.httpServer = &http.Server{
 		Addr:         ":" + port,
 		Handler:      mux,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-	return server.ListenAndServe()
+
+	// Start periodic session cleanup
+	go s.startSessionCleanup()
+
+	return s.httpServer.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the HTTP server.
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.httpServer != nil {
+		return s.httpServer.Shutdown(ctx)
+	}
+	return nil
+}
+
+// startSessionCleanup periodically removes expired sessions from memory.
+func (s *Server) startSessionCleanup() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.sessMutex.Lock()
+		now := time.Now()
+		expired := 0
+		for id, expiry := range s.sessions {
+			if now.After(expiry) {
+				delete(s.sessions, id)
+				expired++
+			}
+		}
+		s.sessMutex.Unlock()
+		if expired > 0 {
+			slog.Debug("Cleaned up expired sessions", "count", expired)
+		}
+	}
 }
 
 func (s *Server) routes(mux *http.ServeMux) {

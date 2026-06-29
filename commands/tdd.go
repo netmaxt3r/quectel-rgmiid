@@ -27,7 +27,7 @@ func (t *Nr5gTddInfo) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (t *Nr5gTddInfo) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (t *Nr5gTddInfo) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	t.Patterns = nil
 	for _, line := range resp {
 		parts := strings.Split(line, ",")

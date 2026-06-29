@@ -44,9 +44,9 @@ func TestParseCNUM(t *testing.T) {
 				}
 			}
 			cn := &CNUM{}
-			cn.ParseRespone(nil, nil, resp, tt.input)
+			cn.ParseResponse(nil, nil, resp, tt.input)
 			if cn.SimNumber != tt.wantNumber {
-				t.Errorf("CNUM.ParseRespone() SimNumber = %q, want %q", cn.SimNumber, tt.wantNumber)
+				t.Errorf("CNUM.ParseResponse() SimNumber = %q, want %q", cn.SimNumber, tt.wantNumber)
 			}
 		})
 	}

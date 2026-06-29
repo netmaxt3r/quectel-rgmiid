@@ -4,3 +4,4 @@
 rgmii_daemon
 web/static/css/tailwind.min.css
 **/.DS_Store
+__debug_bin*

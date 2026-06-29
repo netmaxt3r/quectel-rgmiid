@@ -14,7 +14,7 @@ func (c *LteCsi) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (c *LteCsi) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (c *LteCsi) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	c.Csi = "N/A"
 	if len(resp) > 0 {
 		args := strings.Split(resp[0], ",")
@@ -39,7 +39,7 @@ func (c *Nr5gCsi) Command(ctx *ParsingContext) ATCommand {
 	}
 }
 
-func (c *Nr5gCsi) ParseRespone(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
+func (c *Nr5gCsi) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp []string, raw string) {
 	c.Csi = "N/A"
 	if len(resp) > 0 {
 		args := strings.Split(resp[0], ",")

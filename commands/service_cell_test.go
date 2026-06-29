@@ -4,11 +4,10 @@ import (
 	"testing"
 )
 
-
-func TestServingCell_ParseRespone(t *testing.T) {
+func TestServingCell_ParseResponse(t *testing.T) {
 	sc := &ServingCell{}
 	lines := []string{`"NOCONN","NR5G-SA","TDD",405,86,"123456789",452,"4E","627264",78,-90,-11,12,15,10`}
-	sc.ParseRespone(nil, nil, lines, "")
+	sc.ParseResponse(nil, nil, lines, "")
 
 	if sc.AccessTechnology != "NR5G-SA" {
 		t.Errorf("expected AccessTechnology NR5G-SA, got %q", sc.AccessTechnology)

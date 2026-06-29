@@ -151,6 +151,7 @@ func (d *Daemon) Start(ctx context.Context) {
 		}
 	}
 }
+
 func (d *Daemon) ExecuteATCommand(ctx *commands.ParsingContext, cmd commands.ATCommand) (string, error) {
 	if ctx != nil && !cmd.NoCache {
 		if rsp, found := ctx.RawResponses[cmd.Name]; found {
@@ -201,18 +202,12 @@ func (d *Daemon) SetAPN(ctxID int, cfg commands.APNConfig) error {
 
 // ActivateData enables data for a specific context ID.
 func (d *Daemon) ActivateData(ctxID int) error {
-	if err := commands.ActivateData(d, ctxID); err != nil {
-		return err
-	}
-	return nil
+	return commands.ActivateData(d, ctxID)
 }
 
 // DeactivateData disables data for a specific context ID.
 func (d *Daemon) DeactivateData(ctxID int) error {
-	if err := commands.DeactivateData(d, ctxID); err != nil {
-		return err
-	}
-	return nil
+	return commands.DeactivateData(d, ctxID)
 }
 
 // PollAll queries the modem for all status parameters and updates the cache.
@@ -272,16 +267,26 @@ func (d *Daemon) PollSMSOnly() {
 	if !d.client.IsConnected() {
 		return
 	}
-	d.statusMutex.Lock()
-	defer d.statusMutex.Unlock()
+
+	// Collect results into temporary structures without holding statusMutex.
+	// This avoids holding statusMutex while acquiring cmdMutex (via AT commands).
+	var smsList commands.SMSList
+	var smsCapacity commands.SMSCapacity
+	tmpStatus := commands.NewModemStatus()
 
 	ctx := &commands.ParsingContext{
-		RawResponses: d.status.RawResponses,
+		RawResponses: make(map[string]string),
 		Connection:   d,
 	}
-	commands.RunParser(ctx, &d.status, &d.status.SMSList)
-	commands.RunParser(ctx, &d.status, &d.status.SMSCapacity)
+	commands.RunParser(ctx, tmpStatus, &smsList)
+	commands.RunParser(ctx, tmpStatus, &smsCapacity)
+
+	// Now lock statusMutex only for the cache update
+	d.statusMutex.Lock()
+	d.status.SMSList = smsList
+	d.status.SMSCapacity = smsCapacity
 	d.status.LastUpdated = time.Now()
+	d.statusMutex.Unlock()
 }
 
 // DeleteSMS deletes an SMS message by its index.
@@ -330,6 +335,7 @@ func (d *Daemon) GetDynamicConfigs() []string {
 	defer d.dynStateMutex.RUnlock()
 	return slices.Collect(maps.Keys(d.dynConfigsState))
 }
+
 func (d *Daemon) GetDynamicConfigState(name string) (*commands.DynamicConfigState, bool) {
 	d.dynStateMutex.RLock()
 	defer d.dynStateMutex.RUnlock()

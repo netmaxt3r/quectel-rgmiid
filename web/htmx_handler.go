@@ -335,18 +335,24 @@ func (h *HTMXHandler) HandleDynConfigGet(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err != nil {
 		//w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, `<div class="flex flex-col gap-1" title="Raw Response:&#10;%s">`, escapedResp)
+		fmt.Fprintf(w, `<div class="flex flex-col gap-1.5 min-w-0 w-full" title="Raw Response:&#10;%s">`, escapedResp)
 		fmt.Fprintf(w, `<span class="text-rose-500 font-mono text-xs font-semibold">Error: %s</span>`, template.HTMLEscapeString(err.Error()))
 		fmt.Fprintf(w, `</div>`)
 		return
 	}
 
-	fmt.Fprintf(w, `<div class="flex flex-col gap-1" title="Raw Response:&#10;%s">`, escapedResp)
+	fmt.Fprintf(w, `<div class="flex flex-col gap-1.5 min-w-0 w-full" title="Raw Response:&#10;%s">`, escapedResp)
 	if len(val) == 0 {
-		fmt.Fprintf(w, `<span class="text-cyan-400 font-mono text-xs font-semibold select-all">OK</span>`)
+		fmt.Fprintf(w, `<div class="flex items-start gap-1.5 text-cyan-400 font-mono text-xs">`)
+		fmt.Fprintf(w, `<span class="text-cyan-600/50 select-none shrink-0 font-bold">&gt;</span>`)
+		fmt.Fprintf(w, `<span class="select-all break-all leading-normal flex-1 font-semibold">OK</span>`)
+		fmt.Fprintf(w, `</div>`)
 	} else {
 		for _, line := range val {
-			fmt.Fprintf(w, `<span class="text-cyan-400 font-mono text-xs font-semibold select-all">%s</span>`, template.HTMLEscapeString(line))
+			fmt.Fprintf(w, `<div class="flex items-start gap-1.5 text-cyan-400 font-mono text-xs">`)
+			fmt.Fprintf(w, `<span class="text-cyan-600/50 select-none shrink-0 font-bold">&gt;</span>`)
+			fmt.Fprintf(w, `<span class="select-all break-all leading-normal flex-1 font-semibold">%s</span>`, template.HTMLEscapeString(line))
+			fmt.Fprintf(w, `</div>`)
 		}
 	}
 	fmt.Fprintf(w, `</div>`)
@@ -365,20 +371,28 @@ func (h *HTMXHandler) HandleDynConfigSet(w http.ResponseWriter, r *http.Request)
 	args := r.FormValue("args")
 
 	val, resp, err := h.server.daemon.SetDynamicConfigValue(name, subname, args)
+	escapedResp := template.HTMLEscapeString(resp)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		//need to show raw resp even on error
+		fmt.Fprintf(w, `<div class="flex flex-col gap-1.5 min-w-0 w-full" title="Raw Response:&#10;%s">`, escapedResp)
 		fmt.Fprintf(w, `<span class="text-rose-500 font-mono text-xs font-semibold">Error: %s</span>`, template.HTMLEscapeString(err.Error()))
+
+		fmt.Fprintf(w, `</div>`)
 		return
 	}
-
-	escapedResp := template.HTMLEscapeString(resp)
-	fmt.Fprintf(w, `<div class="flex flex-col gap-1" title="Raw Response:&#10;%s">`, escapedResp)
+	fmt.Fprintf(w, `<div class="flex flex-col gap-1.5 min-w-0 w-full" title="Raw Response:&#10;%s">`, escapedResp)
 	if len(val) == 0 {
-		fmt.Fprintf(w, `<span class="text-emerald-400 font-mono text-xs font-semibold select-all">OK</span>`)
+		fmt.Fprintf(w, `<div class="flex items-start gap-1.5 text-emerald-400 font-mono text-xs">`)
+		fmt.Fprintf(w, `<span class="text-emerald-600/50 select-none shrink-0 font-bold">&gt;</span>`)
+		fmt.Fprintf(w, `<span class="select-all break-all leading-normal flex-1 font-semibold">OK</span>`)
+		fmt.Fprintf(w, `</div>`)
 	} else {
 		for _, line := range val {
-			fmt.Fprintf(w, `<span class="text-emerald-400 font-mono text-xs font-semibold select-all">%s</span>`, template.HTMLEscapeString(line))
+			fmt.Fprintf(w, `<div class="flex items-start gap-1.5 text-emerald-400 font-mono text-xs">`)
+			fmt.Fprintf(w, `<span class="text-emerald-600/50 select-none shrink-0 font-bold">&gt;</span>`)
+			fmt.Fprintf(w, `<span class="select-all break-all leading-normal flex-1 font-semibold">%s</span>`, template.HTMLEscapeString(line))
+			fmt.Fprintf(w, `</div>`)
 		}
 	}
 	fmt.Fprintf(w, `</div>`)

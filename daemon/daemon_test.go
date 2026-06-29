@@ -158,14 +158,14 @@ func TestDaemonDynamicConfig(t *testing.T) {
 		t.Errorf("expected command to be QMAP, got %s", gotState.Config.Command)
 	}
 
-	gotState.SetValue("VLAN", "OK")
+	gotState.SetValue("VLAN", []string{"OK"})
 	val := gotState.GetValue("VLAN")
-	if val != "OK" {
+	if len(val) != 1 || val[0] != "OK" {
 		t.Errorf("expected value to be OK, got %q", val)
 	}
 
 	val2 := gotState.GetValue("vlan")
-	if val2 != "OK" {
+	if len(val2) != 1 || val2[0] != "OK" {
 		t.Errorf("expected case-insensitive value to be OK, got %q", val2)
 	}
 }

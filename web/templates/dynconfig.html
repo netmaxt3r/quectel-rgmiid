@@ -52,15 +52,18 @@
             </div>
 
             <!-- Value Display Area -->
-            <div class="bg-slate-950/50 rounded-xl p-3 border border-white/5 flex items-center justify-between">
-                <div class="flex flex-col gap-0.5">
+            <div class="bg-slate-950/50 rounded-xl p-3 border border-white/5 flex items-center justify-between gap-4 min-w-0">
+                <div class="flex flex-col gap-0.5 min-w-0 flex-1">
                     <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Current Value</span>
-                    <div id="val-display-{{ .Name | safeID }}">
+                    <div id="val-display-{{ .Name | safeID }}" class="min-w-0 w-full">
                         {{ $cachedVal := $.GetValue .Name }}
                         {{ if $cachedVal }}
-                        <div class="flex flex-col gap-1">
+                        <div class="flex flex-col gap-1.5 min-w-0 w-full">
                             {{ range $cachedVal }}
-                            <span class="text-cyan-400 font-mono text-xs font-semibold select-all">{{ . }}</span>
+                            <div class="flex items-start gap-1.5 text-cyan-400 font-mono text-xs">
+                                <span class="text-cyan-600/50 select-none shrink-0 font-bold">&gt;</span>
+                                <span class="select-all break-all leading-normal flex-1 font-semibold">{{ . }}</span>
+                            </div>
                             {{ end }}
                         </div>
                         {{ else }}
@@ -71,7 +74,7 @@
                 <button hx-post="/api/dynconfig/{{ $.Config.Name }}/get?subname={{ .Name }}"
                     hx-target="#val-display-{{ .Name | safeID }}" hx-swap="innerHTML"
                     hx-indicator="#loader-{{ .Name | safeID }}"
-                    class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/5 active:scale-95 transition">
+                    class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/5 active:scale-95 transition shrink-0">
                     Get
                 </button>
             </div>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<html lang="en" class="h-full bg-slate-950 text-slate-100 overflow-x-hidden">
 
 <head>
     <meta charset="UTF-8">
@@ -25,17 +25,17 @@
     </style>
 </head>
 
-<body class="h-full flex flex-col antialiased" hx-indicator="#global-loading">
+<body class="h-full flex flex-col antialiased overflow-x-hidden" hx-indicator="#global-loading">
     <!-- Global Loading Indicator Bar -->
     <div id="global-loading"
         class="htmx-indicator fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-teal-400 to-indigo-500 z-50 animate-pulse">
     </div>
     <!-- Navbar -->
-    <header class="border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center glass-panel">
-        <div class="flex items-center gap-3">
+    <header class="border-b border-white/5 py-4 px-4 sm:px-6 md:px-12 flex justify-between items-center glass-panel">
+        <div class="flex items-center gap-2 sm:gap-3">
             <div
-                class="h-10 w-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                class="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <svg class="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round"
                         d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z" />
@@ -43,73 +43,73 @@
             </div>
             <div>
                 <h1
-                    class="text-xl font-semibold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+                    class="text-base sm:text-xl font-semibold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
                     Quectel RM520 Panel</h1>
-                <p class="text-xs text-slate-400">RGMII AT over TCP Daemon</p>
+                <p class="text-[10px] sm:text-xs text-slate-400">RGMII AT over TCP Daemon</p>
             </div>
         </div>
 
         <!-- Action bar -->
-        <div class="flex items-center gap-4">
-            <div class="text-right hidden sm:block">
+        <div class="flex items-center gap-2 sm:gap-4">
+            <div class="text-right hidden md:block">
                 <p class="text-xs text-slate-400">Modem Address</p>
                 <p class="text-sm font-mono text-cyan-400" id="modem-addr-display">Connecting...</p>
             </div>
             <button id="refresh-btn" hx-get="/refresh?tab=status" hx-target="#tab-content" hx-swap="innerHTML"
-                class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 transition flex items-center gap-2 border border-white/5">
+                class="px-2.5 py-2 sm:px-4 text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 transition flex items-center gap-2 border border-white/5">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round"
                         d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                 </svg>
-                Refresh
+                <span class="hidden sm:inline">Refresh</span>
             </button>
             {{ if .AuthEnabled }}
             <a href="/logout"
-                class="px-4 py-2 text-sm font-medium rounded-lg bg-rose-950/40 hover:bg-rose-900/60 active:scale-95 transition flex items-center gap-2 border border-rose-500/20 text-rose-300">
+                class="px-2.5 py-2 sm:px-4 text-sm font-medium rounded-lg bg-rose-950/40 hover:bg-rose-900/60 active:scale-95 transition flex items-center gap-2 border border-rose-500/20 text-rose-300">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round"
                         d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                 </svg>
-                Sign Out
+                <span class="hidden sm:inline">Sign Out</span>
             </a>
             {{ end }}
         </div>
     </header>
 
     <!-- Main Workspace -->
-    <main class="flex-1 p-6 md:p-12 max-w-[1200px] w-full mx-auto flex flex-col gap-8 overflow-y-auto">
-        <div class="flex flex-col gap-8">
+    <main class="flex-1 p-4 sm:p-6 md:p-12 max-w-[1200px] w-full mx-auto flex flex-col gap-4 sm:gap-8 overflow-y-auto overflow-x-hidden min-w-0">
+        <div class="flex flex-col gap-4 sm:gap-8 min-w-0 w-full">
             <!-- Navigation Tabs -->
-            <div class="flex border-b border-white/5 pb-px gap-6 mb-2">
+            <div class="flex overflow-x-auto whitespace-nowrap border-b border-white/5 pb-px gap-4 sm:gap-6 mb-2 no-scrollbar w-full">
                 <button id="tab-status-btn" hx-get="/api/status" hx-target="#tab-content" hx-swap="innerHTML"
                     hx-trigger="click"
                     onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=status'); htmx.process(document.getElementById('refresh-btn'));"
-                    class="tab-btn border-b-2 border-cyan-500 pb-3 text-sm font-semibold text-white px-1 transition-all duration-200 focus:outline-none">
+                    class="tab-btn shrink-0 border-b-2 border-cyan-500 pb-3 text-sm font-semibold text-white px-1 transition-all duration-200 focus:outline-none">
                     Status
                 </button>
                 <button id="tab-sms-btn" hx-get="/api/sms" hx-target="#tab-content" hx-swap="innerHTML"
                     hx-trigger="click"
                     onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=sms'); htmx.process(document.getElementById('refresh-btn'));"
-                    class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
+                    class="tab-btn shrink-0 border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
                     SMS
                 </button>
                 <button id="tab-console-btn" hx-get="/api/console" hx-target="#tab-content" hx-swap="innerHTML"
                     hx-trigger="click"
                     onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=console'); htmx.process(document.getElementById('refresh-btn'));"
-                    class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
+                    class="tab-btn shrink-0 border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
                     Console
                 </button>
                 <button id="tab-settings-btn" hx-get="/api/settings" hx-target="#tab-content" hx-swap="innerHTML"
                     hx-trigger="click"
                     onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=settings'); htmx.process(document.getElementById('refresh-btn'));"
-                    class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
+                    class="tab-btn shrink-0 border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
                     Settings
                 </button>
                 {{ range .DynamicConfigs }}
                 <button id="tab-dyn-{{ .Name }}-btn" hx-get="/api/dynconfig/{{ .Name }}" hx-target="#tab-content" hx-swap="innerHTML"
                     hx-trigger="click"
                     onclick="document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('border-cyan-500', 'text-white', 'font-semibold'); b.classList.add('border-transparent', 'text-slate-400', 'font-medium') }); this.classList.add('border-cyan-500', 'text-white', 'font-semibold'); this.classList.remove('border-transparent', 'text-slate-400', 'font-medium'); document.getElementById('refresh-btn').setAttribute('hx-get', '/refresh?tab=dynconfig&name={{ .Name }}'); htmx.process(document.getElementById('refresh-btn'));"
-                    class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
+                    class="tab-btn shrink-0 border-b-2 border-transparent pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 px-1 transition-all duration-200 focus:outline-none">
                     {{ .Name }}
                 </button>
                 {{ end }}
@@ -117,7 +117,7 @@
 
             <!-- HTMX dynamic target container -->
             <div id="tab-content" hx-get="/api/status" hx-trigger="load" hx-swap="innerHTML"
-                class="flex flex-col gap-8">
+                class="flex flex-col gap-4 sm:gap-8">
                 <!-- Initial Loading skeleton -->
                 <div class="glass-panel p-8 rounded-2xl flex flex-col items-center justify-center min-h-[300px]">
                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mb-4"></div>
@@ -128,7 +128,7 @@
     </main>
 
     <!-- Footer -->
-    <footer class="py-4 px-6 md:px-12 text-center text-xs text-slate-500 border-t border-white/5 glass-panel">
+    <footer class="py-4 px-4 sm:px-6 md:px-12 text-center text-xs text-slate-500 border-t border-white/5 glass-panel">
         Powered by Go + HTMX &bull; RM520 Series Management Interface
     </footer>
 

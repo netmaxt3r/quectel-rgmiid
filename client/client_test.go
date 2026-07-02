@@ -23,26 +23,16 @@ func TestClient_SendCommandLengthLimit(t *testing.T) {
 }
 
 func TestClient_SendCommand(t *testing.T) {
-	// Start local mock server on an ephemeral port
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("Failed to start mock listener: %v", err)
-	}
-	defer listener.Close()
-
-	addr := listener.Addr().String()
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
 
 	// Handle mock connection asynchronously
 	go func() {
-		conn, err := listener.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
+		defer clientConn.Close()
 
 		// Read request
 		buf := make([]byte, 1024)
-		n, err := conn.Read(buf)
+		n, err := clientConn.Read(buf)
 		if err != nil {
 			return
 		}
@@ -75,12 +65,15 @@ func TestClient_SendCommand(t *testing.T) {
 		resp2[2] = byte(len(msg2) & 0xff)
 		copy(resp2[3:], []byte(msg2))
 
-		conn.Write(resp1)
+		clientConn.Write(resp1)
 		time.Sleep(10 * time.Millisecond)
-		conn.Write(resp2)
+		clientConn.Write(resp2)
 	}()
 
-	client := NewClient(addr)
+	client := NewClient("mock-address")
+	client.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		return serverConn, nil
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -107,5 +100,17 @@ func TestClient_SendCommand(t *testing.T) {
 	expected := "\r\nOK\r\n"
 	if resp != expected {
 		t.Errorf("Expected response %q, got %q", expected, resp)
+	}
+}
+
+func TestClient_SendCommandInjection(t *testing.T) {
+	c := NewClient("127.0.0.1:9999")
+	_, err := c.SendCommand("ATI\r\nAT+CFUN=1,1", 1*time.Second)
+	if err == nil {
+		t.Fatalf("Expected error for command with internal newlines, got nil")
+	}
+	expectedSub := "potential command injection"
+	if !strings.Contains(err.Error(), expectedSub) {
+		t.Errorf("Expected error to contain %q, got %q", expectedSub, err.Error())
 	}
 }

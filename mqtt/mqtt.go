@@ -74,7 +74,7 @@ func NewClient(cfg Config) (*Client, error) {
 		last := c.lastStatus
 		c.mu.Unlock()
 		if last != nil && cfg.Discovery {
-			c.publishDiscovery(*last)
+			go c.publishDiscovery(*last)
 		}
 	})
 
@@ -326,6 +326,13 @@ func (c *Client) publishDiscovery(status commands.ModemStatus) {
 	})
 
 	slog.Info("Published Home Assistant auto discovery configurations", "device_id", deviceId)
+}
+
+// Disconnect gracefully disconnects the MQTT client.
+func (c *Client) Disconnect() {
+	if c.client != nil && c.client.IsConnected() {
+		c.client.Disconnect(250)
+	}
 }
 
 func sanitize(s string) string {

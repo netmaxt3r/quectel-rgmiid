@@ -6,6 +6,7 @@ import (
 	"context"
 	"embed"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -98,15 +99,20 @@ func (s *Server) Start(port string) error {
 	slog.Info("Starting web control panel", "url", "http://localhost:"+port)
 
 	s.httpServer = &http.Server{
-		Addr:         ":" + port,
-		Handler:      mux,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:              ":" + port,
+		Handler:           mux,
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	// Start periodic session cleanup
-	go s.startSessionCleanup()
+	stopChan := make(chan struct{})
+	s.httpServer.RegisterOnShutdown(func() {
+		close(stopChan)
+	})
+	go s.startSessionCleanup(stopChan)
 
 	return s.httpServer.ListenAndServe()
 }
@@ -120,23 +126,28 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 // startSessionCleanup periodically removes expired sessions from memory.
-func (s *Server) startSessionCleanup() {
+func (s *Server) startSessionCleanup(stopChan <-chan struct{}) {
 	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		s.sessMutex.Lock()
-		now := time.Now()
-		expired := 0
-		for id, expiry := range s.sessions {
-			if now.After(expiry) {
-				delete(s.sessions, id)
-				expired++
+	for {
+		select {
+		case <-stopChan:
+			return
+		case <-ticker.C:
+			s.sessMutex.Lock()
+			now := time.Now()
+			expired := 0
+			for id, expiry := range s.sessions {
+				if now.After(expiry) {
+					delete(s.sessions, id)
+					expired++
+				}
 			}
-		}
-		s.sessMutex.Unlock()
-		if expired > 0 {
-			slog.Debug("Cleaned up expired sessions", "count", expired)
+			s.sessMutex.Unlock()
+			if expired > 0 {
+				slog.Debug("Cleaned up expired sessions", "count", expired)
+			}
 		}
 	}
 }
@@ -147,7 +158,12 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.Handle("GET /logout", s.dispatch(RequestHandler.HandleLogout))
 
 	// Serve static files with gzip compression - EXEMPTED from auth!
-	mux.Handle("GET /static/", gzipHandler(http.FileServer(http.FS(webFS))))
+	staticFS, err := fs.Sub(webFS, "static")
+	if err != nil {
+		slog.Error("Failed to create static sub-filesystem", "error", err)
+		os.Exit(1)
+	}
+	mux.Handle("GET /static/", gzipHandler(http.StripPrefix("/static/", http.FileServer(http.FS(staticFS)))))
 
 	// Index page (protected)
 	mux.Handle("GET /{$}", s.sessionOrTokenAuth(http.HandlerFunc(s.handleIndex)))
@@ -236,12 +252,15 @@ type gzipResponseWriter struct {
 }
 
 func (w *gzipResponseWriter) Write(b []byte) (int, error) {
+	w.ensureWriter()
+	return w.writer.Write(b)
+}
+func (w *gzipResponseWriter) ensureWriter() {
 	if w.writer == nil {
 		w.Header().Set("Content-Encoding", "gzip")
 		w.Header().Del("Content-Length")
 		w.writer = gzip.NewWriter(w.ResponseWriter)
 	}
-	return w.writer.Write(b)
 }
 
 func (w *gzipResponseWriter) WriteHeader(statusCode int) {
@@ -249,9 +268,7 @@ func (w *gzipResponseWriter) WriteHeader(statusCode int) {
 		w.ResponseWriter.WriteHeader(statusCode)
 		return
 	}
-	w.Header().Set("Content-Encoding", "gzip")
-	w.Header().Del("Content-Length")
-	w.writer = gzip.NewWriter(w.ResponseWriter)
+	w.ensureWriter()
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 

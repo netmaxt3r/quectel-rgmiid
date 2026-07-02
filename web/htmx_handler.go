@@ -283,7 +283,7 @@ func (h *HTMXHandler) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.server.createSession(w)
+	_, err = h.server.createSession(w, r)
 	if err != nil {
 		h.server.renderTemplate(w, http.StatusInternalServerError, "login.html", map[string]string{"Error": "Internal server error"})
 		return
@@ -315,7 +315,7 @@ func (h *HTMXHandler) HandleDynConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "dynconfig.html", state); err != nil {
+	if err := tmpl.ExecuteTemplate(w, "dynconfig.html", state.Clone()); err != nil {
 		slog.Error("Error executing dynconfig template", "error", err)
 		http.Error(w, "Template execution error", http.StatusInternalServerError)
 	}

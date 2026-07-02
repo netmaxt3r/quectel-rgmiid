@@ -315,9 +315,18 @@ func (d *Daemon) handleClientConnect() {
 
 	for _, cfg := range configs {
 		cmdStr := fmt.Sprintf("AT+%s=?", cfg.Command)
-		resp, err := d.SendCommand(cmdStr)
+		var resp string
+		var err error
+		for retry := 0; retry < 3; retry++ {
+			resp, err = d.SendCommand(cmdStr)
+			if err == nil {
+				break
+			}
+			slog.Warn("Failed to query format for dynamic config, retrying...", "name", cfg.Name, "command", cmdStr, "attempt", retry+1, "error", err)
+			time.Sleep(1 * time.Second)
+		}
 		if err != nil {
-			slog.Error("Failed to query format for dynamic config", "name", cfg.Name, "command", cmdStr, "error", err)
+			slog.Error("Failed to query format for dynamic config after retries", "name", cfg.Name, "command", cmdStr, "error", err)
 			continue
 		}
 
@@ -347,7 +356,7 @@ func parseDynamicConfigResponse(name, subname, resp string) ([]string, error) {
 	if len(lines) > 0 {
 		last := lines[len(lines)-1]
 		last = strings.TrimSpace(last)
-		if strings.HasPrefix(last, "ERROR") {
+		if _, isErr := commands.IsTerminalResponse(last); isErr {
 			return nil, errors.New(last)
 		}
 	}
@@ -386,7 +395,7 @@ func (d *Daemon) QueryDynamicConfigValue(name, subname string) ([]string, string
 	}
 
 	trimmed := strings.TrimSpace(resp)
-	lines, err := parseDynamicConfigResponse(name, subname, trimmed)
+	lines, err := parseDynamicConfigResponse(state.Config.Command, subname, trimmed)
 	if err != nil {
 		return nil, resp, err
 	}

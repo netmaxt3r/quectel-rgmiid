@@ -145,19 +145,20 @@ func ParseCSVToStruct(dest interface{}, csvLine string) error {
 	return nil
 }
 
-func IsTerminalResponse(s string) bool {
-	trimmed := strings.TrimSpace(s)
-	if strings.HasSuffix(trimmed, "OK") {
-		return true
+func IsTerminalResponse(s string) (bool, bool) {
+	lines := strings.Split(s, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "OK" {
+			return true, false
+		}
+		if trimmed == "ERROR" {
+			return true, true
+		}
+		if strings.HasPrefix(trimmed, "+CME ERROR:") || strings.HasPrefix(trimmed, "+CMS ERROR:") {
+			return true, true
+		}
 	}
-	if strings.HasSuffix(trimmed, "ERROR") {
-		return true
-	}
-	if strings.Contains(trimmed, "+CME ERROR:") {
-		return true
-	}
-	if strings.Contains(trimmed, "+CMS ERROR:") {
-		return true
-	}
-	return false
+	return false, false
 }
+

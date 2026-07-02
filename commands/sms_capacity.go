@@ -27,7 +27,11 @@ func (c *SMSCapacity) ParseResponse(ctx *ParsingContext, status *ModemStatus, re
 			var used, total int
 			fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &used)
 			fmt.Sscanf(strings.TrimSpace(parts[2]), "%d", &total)
-			status.SMSCapacity = SMSCapacity{Used: used, Total: total}
+			c.Used = used
+			c.Total = total
+			if status != nil {
+				status.SMSCapacity = *c
+			}
 			return
 		}
 	}

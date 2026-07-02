@@ -135,3 +135,30 @@ func TestParseCSVToStruct_ServingCellLTE(t *testing.T) {
 		t.Errorf("expected Srxlev 30, got %d", sclte.Srxlev)
 	}
 }
+
+func TestIsTerminalResponse(t *testing.T) {
+	tests := []struct {
+		input          string
+		expectedTerm   bool
+		expectedErr    bool
+	}{
+		{"OK", true, false},
+		{"ERROR", true, true},
+		{"\r\nOK\r\n", true, false},
+		{"+CME ERROR: 10", true, true},
+		{"+CMS ERROR: 300", true, true},
+		{"+QENG: ...\r\n\r\nOK\r\n", true, false},
+		{"+QENG: ...\r\nOK\r\n+URC: ready\r\n", true, false}, // Interleaved URC
+		{"OK\r\n+URC: test", true, false}, // Interleaved after OK
+		{"JUST DUMMY TEXT", false, false},
+		{"OK_NOT_REALLY", false, false},
+		{"+CME ERROR NOT SUFFIX", false, false}, // Must start with prefix
+	}
+
+	for _, tc := range tests {
+		gotTerm, gotErr := IsTerminalResponse(tc.input)
+		if gotTerm != tc.expectedTerm || gotErr != tc.expectedErr {
+			t.Errorf("IsTerminalResponse(%q) = (%v, %v); expected (%v, %v)", tc.input, gotTerm, gotErr, tc.expectedTerm, tc.expectedErr)
+		}
+	}
+}

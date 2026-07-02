@@ -110,7 +110,7 @@ func SendSMS(conn ATIConnection, number, text string) error {
 		output.WriteString(frame)
 		if strings.Contains(frame, ">") {
 			promptReceived = true
-		} else if IsTerminalResponse(frame) {
+		} else if isTerm, _ := IsTerminalResponse(frame); isTerm {
 			return fmt.Errorf("modem returned error before prompt: %s", strings.TrimSpace(frame))
 		}
 	}
@@ -129,8 +129,8 @@ func SendSMS(conn ATIConnection, number, text string) error {
 			return fmt.Errorf("failed to read SMS sent confirmation: %w (output: %q)", err, output.String())
 		}
 		output.WriteString(frame)
-		if IsTerminalResponse(frame) {
-			if strings.Contains(output.String(), "ERROR") {
+		if isTerm, is_error := IsTerminalResponse(frame); isTerm {
+			if is_error {
 				return fmt.Errorf("modem returned error: %s", strings.TrimSpace(output.String()))
 			}
 			return nil

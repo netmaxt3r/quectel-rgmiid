@@ -31,14 +31,16 @@ func NewSession(conn net.Conn) *Session {
 
 // Client manages a persistent TCP connection to the Quectel RGMII AT interface.
 type Client struct {
-	addr        string
-	mu          sync.Mutex
-	session     *Session
-	urcChan     chan string
-	connectChan chan struct{}
-	Debug       bool
-	OnConnect   func()
-	cmdMu       sync.Mutex // Serializes all commands and interactive sessions
+	addr              string
+	mu                sync.Mutex
+	session           *Session
+	urcChan           chan string
+	connectChan       chan struct{}
+	Debug             bool
+	OnConnect         func()
+	cmdMu             sync.Mutex // Serializes all commands and interactive sessions
+	activeInteractive *ClientInteractive
+	DialContext       func(ctx context.Context, network, address string) (net.Conn, error)
 }
 
 // NewClient creates a new persistent RGMII Client.
@@ -48,6 +50,10 @@ func NewClient(addr string) *Client {
 		urcChan:     make(chan string, 100),
 		connectChan: make(chan struct{}, 1),
 		Debug:       false,
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, network, address)
+		},
 	}
 }
 
@@ -79,6 +85,16 @@ func (c *Client) URCChan() <-chan string {
 }
 
 func (c *Client) reconnectLoop(ctx context.Context) {
+	// Close connection on context cancellation to wake up readerLoop
+	go func() {
+		<-ctx.Done()
+		c.mu.Lock()
+		if c.session != nil {
+			c.session.conn.Close()
+		}
+		c.mu.Unlock()
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -87,9 +103,8 @@ func (c *Client) reconnectLoop(ctx context.Context) {
 		}
 
 		slog.Info("Connecting to modem", "address", c.addr)
-		var dialer net.Dialer
 		dialCtx, dialCancel := context.WithTimeout(ctx, 5*time.Second)
-		conn, err := dialer.DialContext(dialCtx, "tcp", c.addr)
+		conn, err := c.DialContext(dialCtx, "tcp", c.addr)
 		dialCancel()
 		if err != nil {
 			slog.Error("Modem connection failed", "error", err, "retry_after", "3s")
@@ -128,7 +143,15 @@ func (c *Client) reconnectLoop(ctx context.Context) {
 		if c.session == session {
 			c.session = nil
 		}
+		var activeInt *ClientInteractive
+		if c.activeInteractive != nil && c.activeInteractive.s == session {
+			activeInt = c.activeInteractive
+		}
 		c.mu.Unlock()
+
+		if activeInt != nil {
+			activeInt.Close()
+		}
 
 		slog.Warn("Connection to modem lost; initiating reconnect")
 	}
@@ -175,6 +198,11 @@ func (c *Client) readerLoop(s *Session) {
 				}
 
 				payloadLen := (int(buf[1]) << 8) | int(buf[2])
+				if payloadLen > 8192 {
+					// Corrupted frame size, discard first byte to trigger re-sync
+					buf = buf[1:]
+					continue
+				}
 				frameLen := 3 + payloadLen
 
 				if len(buf) < frameLen {
@@ -272,7 +300,7 @@ drained:
 		select {
 		case frame := <-s.responseChan:
 			output.WriteString(frame)
-			if commands.IsTerminalResponse(frame) {
+			if isTerm, _ := commands.IsTerminalResponse(frame); isTerm {
 				return output.String(), nil
 			}
 		case <-s.disconnectChan:
@@ -349,6 +377,8 @@ func (ci *ClientInteractive) ReadFrame(timeout time.Duration) (string, error) {
 	select {
 	case frame := <-ci.s.responseChan:
 		return frame, nil
+	case <-ci.s.disconnectChan:
+		return "", fmt.Errorf("modem connection dropped during execution")
 	case <-timer.C:
 		return "", fmt.Errorf("timeout waiting for frame")
 	}
@@ -360,6 +390,11 @@ func (ci *ClientInteractive) Close() error {
 			ci.idleTimer.Stop()
 		}
 		ci.client.cmdMu.Unlock()
+		ci.client.mu.Lock()
+		if ci.client.activeInteractive == ci {
+			ci.client.activeInteractive = nil
+		}
+		ci.client.mu.Unlock()
 	})
 	return nil
 }
@@ -396,6 +431,10 @@ interactiveDrained:
 		slog.Warn("Interactive session idle timeout reached, closing session")
 		ci.Close()
 	})
+
+	c.mu.Lock()
+	c.activeInteractive = ci
+	c.mu.Unlock()
 
 	return ci, nil
 }

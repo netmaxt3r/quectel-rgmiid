@@ -231,8 +231,9 @@ func (sc *ServingCell) parse5GSA(ctx *ParsingContext, status *ModemStatus, resp 
 		sc.NR5GSA.Tac = parts[7]
 		sc.NR5GSA.NrDlArfcn = parts[8]
 		sc.NR5GSA.Band, _ = strconv.Atoi(parts[9])
-		sc.NR5GSA.Srxlev, _ = strconv.Atoi(parts[10])
-
+		if len(parts) > 10 {
+			sc.NR5GSA.Srxlev, _ = strconv.Atoi(parts[10])
+		}
 		rsrpIdx := 11
 
 		if len(parts) > rsrpIdx {

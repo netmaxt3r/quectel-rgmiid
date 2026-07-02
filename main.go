@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -33,6 +34,11 @@ func main() {
 	atiDebug := flag.Bool("ati-debug", getEnvBool("ATI_DEBUG", false), "Log all raw AT commands and responses in real time")
 
 	flag.Parse()
+
+	if *pollInterval <= 0 {
+		slog.Error("Invalid poll interval configured (must be greater than 0)", "interval", *pollInterval)
+		os.Exit(1)
+	}
 
 	// Initialize slog to write to stdout and display local time (respecting TZ)
 	logLevel := slog.LevelInfo
@@ -71,9 +77,17 @@ func main() {
 	slog.Info("API key access status", "enabled", *apiKey != "")
 
 	if *mqttServer != "" {
+		logServer := *mqttServer
+		u, err := url.Parse(*mqttServer)
+		if err == nil && u.User != nil {
+			if _, hasPass := u.User.Password(); hasPass {
+				u.User = url.UserPassword(u.User.Username(), "xxxxx")
+				logServer = u.String()
+			}
+		}
 		slog.Info("MQTT service status",
 			"enabled", true,
-			"server", *mqttServer,
+			"server", logServer,
 			"topic_base", *mqttTopic,
 			"ha_discovery", *mqttDiscovery,
 			"discovery_prefix", *mqttDiscoveryPrefix,
@@ -91,8 +105,10 @@ func main() {
 	defer cancel()
 
 	// Configure MQTT if active
+	var mqttClient *mqtt.Client
 	if *mqttServer != "" {
-		mqttClient, err := mqtt.NewClient(mqtt.Config{
+		var err error
+		mqttClient, err = mqtt.NewClient(mqtt.Config{
 			Server:          *mqttServer,
 			Username:        *mqttUser,
 			Password:        *mqttPass,
@@ -117,18 +133,19 @@ func main() {
 	// Start background poller
 	go d.Start(ctx)
 
+	// Intercept terminate/interrupt signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
 	// Start web dashboard
 	srv := web.NewServer(d, *modemAddr, *authUser, *authPass, *apiKey)
 	go func() {
 		if err := srv.Start(*webPort); err != nil && err.Error() != "http: Server closed" {
 			slog.Error("Web server crashed", "error", err)
-			os.Exit(1)
+			sigChan <- syscall.SIGTERM
 		}
 	}()
 
-	// Intercept terminate/interrupt signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
 
 	slog.Info("Shutting down gracefully...")
@@ -139,6 +156,11 @@ func main() {
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("HTTP server shutdown error", "error", err)
+	}
+
+	if mqttClient != nil {
+		slog.Info("Disconnecting MQTT client...")
+		mqttClient.Disconnect()
 	}
 
 	slog.Info("Daemon terminated.")

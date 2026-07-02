@@ -279,7 +279,7 @@ func (h *JSONHandler) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.server.createSession(w)
+	_, err := h.server.createSession(w, r)
 	if err != nil {
 		h.writeError(w, http.StatusInternalServerError, "Internal server error")
 		return
@@ -310,7 +310,7 @@ func (h *JSONHandler) HandleDynConfig(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, http.StatusNotFound, "dynamic config not found")
 		return
 	}
-	h.writeJSON(w, http.StatusOK, state)
+	h.writeJSON(w, http.StatusOK, state.Clone())
 }
 
 func (h *JSONHandler) HandleDynConfigGet(w http.ResponseWriter, r *http.Request) {

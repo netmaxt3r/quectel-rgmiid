@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -26,6 +27,23 @@ type DynamicConfigState struct {
 	Subcommands []DynamicSubcommand `json:"subcommands"`
 	Values      map[string][]string `json:"values"`
 	ValuesMu    sync.RWMutex        `json:"-"`
+}
+
+// Clone returns a deep copy of the DynamicConfigState, protecting against concurrent map read/write races during JSON/HTML rendering.
+func (s *DynamicConfigState) Clone() *DynamicConfigState {
+	s.ValuesMu.RLock()
+	defer s.ValuesMu.RUnlock()
+
+	clonedValues := make(map[string][]string, len(s.Values))
+	for k, v := range s.Values {
+		clonedValues[k] = slices.Clone(v)
+	}
+
+	return &DynamicConfigState{
+		Config:      s.Config,
+		Subcommands: s.Subcommands,
+		Values:      clonedValues,
+	}
 }
 
 // NewDynamicConfigState creates a new state instance.

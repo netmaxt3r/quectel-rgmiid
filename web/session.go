@@ -35,7 +35,11 @@ func checkSameOrigin(r *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	return u.Host == r.Host
+	host := r.Host
+	if forwardedHost := r.Header.Get("X-Forwarded-Host"); forwardedHost != "" {
+		host = forwardedHost
+	}
+	return u.Host == host
 }
 
 // authenticate checks if the credentials are valid.
@@ -55,7 +59,7 @@ func (s *Server) authenticate(username, password string) bool {
 }
 
 // createSession generates a session ID, stores it, and sets the session cookie.
-func (s *Server) createSession(w http.ResponseWriter) (string, error) {
+func (s *Server) createSession(w http.ResponseWriter, r *http.Request) (string, error) {
 	sessionID, err := generateSessionID()
 	if err != nil {
 		return "", err
@@ -65,13 +69,16 @@ func (s *Server) createSession(w http.ResponseWriter) (string, error) {
 	s.sessions[sessionID] = time.Now().Add(sessionDuration)
 	s.sessMutex.Unlock()
 
+	secure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    sessionID,
 		Path:     "/",
 		Expires:  time.Now().Add(sessionDuration),
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	return sessionID, nil
@@ -92,7 +99,7 @@ func (s *Server) destroySession(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	})
 }
 

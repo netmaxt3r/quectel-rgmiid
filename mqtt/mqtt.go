@@ -240,7 +240,7 @@ func (c *Client) publishDiscovery(status commands.ModemStatus) {
 
 	// 5. Connection State (sensor)
 	pubSensor("sensor", "connection_state", "Connection State", map[string]interface{}{
-		"icon":           "mdi:connection",
+		"icon":           "mdi:transit-connection-variant",
 		"value_template": "{{ value_json.connection_state }}",
 	})
 
@@ -259,13 +259,13 @@ func (c *Client) publishDiscovery(status commands.ModemStatus) {
 	// 8. IP Address (sensor)
 	pubSensor("sensor", "ip_address", "IP Address", map[string]interface{}{
 		"icon":           "mdi:ip",
-		"value_template": "{{ value_json.ip_address }}",
+		"value_template": "{{ value_json.ip_address | join(', ') if value_json.ip_address is defined else 'N/A' }}",
 	})
 
 	// 9. IPv6 Address (sensor)
 	pubSensor("sensor", "ipv6_address", "IPv6 Address", map[string]interface{}{
 		"icon":           "mdi:ip",
-		"value_template": "{{ value_json.ipv6_address }}",
+		"value_template": "{{ value_json.ipv6_address | join(', ') if value_json.ipv6_address is defined else 'N/A' }}",
 	})
 
 	// 10. LTE RSRP (sensor)
@@ -318,11 +318,138 @@ func (c *Client) publishDiscovery(status commands.ModemStatus) {
 		"value_template": "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('band') or value_json.get('service', {}).get('nr5g_nsa', {}).get('band') or 'N/A' }}",
 	})
 
-	// 18. Sim Number
-
-	pubSensor("sensor", "sim", "Sim", map[string]interface{}{
-		"icon":           "mdi:radio-tower",
+	// 18. SIM Number (sensor)
+	pubSensor("sensor", "sim", "SIM Number", map[string]interface{}{
+		"icon":           "mdi:sim",
 		"value_template": "{{ value_json.sim_number }}",
+	})
+
+	// 19. SIM State (sensor)
+	pubSensor("sensor", "sim_state", "SIM State", map[string]interface{}{
+		"icon":           "mdi:sim-card",
+		"value_template": "{{ value_json.sim_state }}",
+	})
+
+	// 20. SMS Messages Count (sensor)
+	pubSensor("sensor", "sms_used", "SMS Messages Count", map[string]interface{}{
+		"icon":           "mdi:message-text",
+		"value_template": "{{ value_json.used }}",
+	})
+
+	// 21. SMS Capacity (sensor)
+	pubSensor("sensor", "sms_total", "SMS Capacity", map[string]interface{}{
+		"icon":           "mdi:message-text-outline",
+		"value_template": "{{ value_json.total }}",
+	})
+
+	// 22. Session Uptime (sensor)
+	pubSensor("sensor", "session_uptime", "Session Uptime", map[string]interface{}{
+		"icon":           "mdi:clock-outline",
+		"value_template": "{{ value_json.session_uptime }}",
+	})
+
+	// 23. MIMO Configuration (sensor)
+	pubSensor("sensor", "mimo_configuration", "MIMO Configuration", map[string]interface{}{
+		"icon": "mdi:antenna",
+		"value_template": "{% if value_json.tech == 'LTE' and value_json.service.lte is defined %}{{ value_json.service.lte.mimo_layers }}{% elif value_json.tech == 'NR5G-SA' and value_json.service.nr5g_sa is defined %}{{ value_json.service.nr5g_sa.mimo_layers }}{% elif value_json.tech == '5G NSA' and value_json.service.nr5g_nsa is defined %}LTE: {{ value_json.service.lte.mimo_layers if value_json.service.lte is defined else 'Unknown' }} | 5G: {{ value_json.service.nr5g_nsa.mimo_layers }}{% else %}N/A{% endif %}",
+	})
+
+	// 24. LTE RSSI (sensor)
+	pubSensor("sensor", "lte_rssi", "LTE RSSI", map[string]interface{}{
+		"device_class":        "signal_strength",
+		"unit_of_measurement": "dBm",
+		"value_template":      "{{ value_json.get('service', {}).get('lte', {}).get('rssi') or 'N/A' }}",
+	})
+
+	// 25. LTE CQI (sensor)
+	pubSensor("sensor", "lte_cqi", "LTE CQI", map[string]interface{}{
+		"icon":           "mdi:quality-high",
+		"value_template": "{{ value_json.get('service', {}).get('lte', {}).get('cqi') or 'N/A' }}",
+	})
+
+	// 26. LTE PCI (sensor)
+	pubSensor("sensor", "lte_pcid", "LTE PCI", map[string]interface{}{
+		"icon":           "mdi:identifier",
+		"value_template": "{{ value_json.get('service', {}).get('lte', {}).get('pcid') or 'N/A' }}",
+	})
+
+	// 27. LTE EARFCN (sensor)
+	pubSensor("sensor", "lte_earfcn", "LTE EARFCN", map[string]interface{}{
+		"icon":           "mdi:radio-tower",
+		"value_template": "{{ value_json.get('service', {}).get('lte', {}).get('earfcn') or 'N/A' }}",
+	})
+
+	// 28. LTE CSI (sensor)
+	pubSensor("sensor", "lte_csi", "LTE CSI", map[string]interface{}{
+		"icon":           "mdi:chart-bar",
+		"value_template": "{{ value_json.get('service', {}).get('lte', {}).get('csi') or 'N/A' }}",
+	})
+
+	// 29. LTE Tx Power (sensor)
+	pubSensor("sensor", "lte_tx_power", "LTE Tx Power", map[string]interface{}{
+		"icon":           "mdi:transmission-tower",
+		"value_template": "{{ value_json.get('service', {}).get('lte', {}).get('tx_pwr') or 'N/A' }}",
+	})
+
+	// 30. NR5G PCI (sensor)
+	pubSensor("sensor", "nr5g_pcid", "NR5G PCI", map[string]interface{}{
+		"icon":           "mdi:identifier",
+		"value_template": "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('pcid') or value_json.get('service', {}).get('nr5g_nsa', {}).get('pcid') or 'N/A' }}",
+	})
+
+	// 31. NR5G ARFCN (sensor)
+	pubSensor("sensor", "nr5g_arfcn", "NR5G ARFCN", map[string]interface{}{
+		"icon":           "mdi:radio-tower",
+		"value_template": "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('nr_dl_arfcn') or value_json.get('service', {}).get('nr5g_nsa', {}).get('arfcn') or 'N/A' }}",
+	})
+
+	// 32. NR5G CSI (sensor)
+	pubSensor("sensor", "nr5g_csi", "NR5G CSI", map[string]interface{}{
+		"icon":           "mdi:chart-bar",
+		"value_template": "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('csi') or value_json.get('service', {}).get('nr5g_nsa', {}).get('csi') or 'N/A' }}",
+	})
+
+	// 33. NR5G Tx Power (sensor)
+	pubSensor("sensor", "nr5g_tx_power", "NR5G Tx Power", map[string]interface{}{
+		"icon":           "mdi:transmission-tower",
+		"value_template": "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('tx_pwr') or value_json.get('service', {}).get('nr5g_nsa', {}).get('tx_pwr') or 'N/A' }}",
+	})
+
+	// 34. NR5G UL MCS (sensor)
+	pubSensor("sensor", "nr5g_ul_mcs", "NR5G UL MCS", map[string]interface{}{
+		"icon":           "mdi:speedometer",
+		"value_template": "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('nr5g_ul_mcs') or value_json.get('service', {}).get('nr5g_nsa', {}).get('nr5g_ul_mcs') or 'N/A' }}",
+	})
+
+	// 35. NR5G DL MCS (sensor)
+	pubSensor("sensor", "nr5g_dl_mcs", "NR5G DL MCS", map[string]interface{}{
+		"icon":           "mdi:speedometer",
+		"value_template": "{{ value_json.get('service', {}).get('nr5g_sa', {}).get('nr5g_dl_mcs') or value_json.get('service', {}).get('nr5g_nsa', {}).get('nr5g_dl_mcs') or 'N/A' }}",
+	})
+
+	// 36. Cell ID (sensor)
+	pubSensor("sensor", "cell_id", "Cell ID", map[string]interface{}{
+		"icon":           "mdi:cellphone-tower",
+		"value_template": "{% if value_json.tech == 'LTE' and value_json.service.lte is defined %}{{ value_json.service.lte.cellid }}{% elif value_json.tech == 'NR5G-SA' and value_json.service.nr5g_sa is defined %}{{ value_json.service.nr5g_sa.cellid }}{% elif value_json.tech == '5G NSA' and value_json.service.lte is defined %}{{ value_json.service.lte.cellid }}{% else %}N/A{% endif %}",
+	})
+
+	// 37. Raw Tx Power (sensor)
+	pubSensor("sensor", "raw_tx_power", "Raw Tx Power", map[string]interface{}{
+		"device_class":        "signal_strength",
+		"unit_of_measurement": "dBm",
+		"value_template":      "{% if value_json.tech == 'LTE' and value_json.service.lte is defined %}{{ value_json.service.lte.tx_power_v }}{% elif value_json.tech == 'NR5G-SA' and value_json.service.nr5g_sa is defined %}{{ value_json.service.nr5g_sa.tx_power_v }}{% elif value_json.tech == '5G NSA' and value_json.service.lte is defined %}{{ value_json.service.lte.tx_power_v }}{% else %}N/A{% endif %}",
+	})
+
+	// 38. Srxlev (sensor)
+	pubSensor("sensor", "srxlev", "Srxlev", map[string]interface{}{
+		"icon":           "mdi:signal-variant",
+		"value_template": "{% if value_json.tech == 'LTE' and value_json.service.lte is defined %}{{ value_json.service.lte.srxlev }}{% elif value_json.tech == 'NR5G-SA' and value_json.service.nr5g_sa is defined %}{{ value_json.service.nr5g_sa.srxlev }}{% elif value_json.tech == '5G NSA' and value_json.service.lte is defined %}{{ value_json.service.lte.srxlev }}{% else %}N/A{% endif %}",
+	})
+
+	// 39. TDD Pattern (sensor)
+	pubSensor("sensor", "tdd_pattern", "TDD Pattern", map[string]interface{}{
+		"icon":           "mdi:clock-digital",
+		"value_template": "{% set sa_patterns = value_json.service.nr5g_sa.tdd_patterns if (value_json.service.nr5g_sa is defined and value_json.service.nr5g_sa.tdd_patterns is defined) else [] %}{% set nsa_patterns = value_json.service.nr5g_nsa.tdd_patterns if (value_json.service.nr5g_nsa is defined and value_json.service.nr5g_nsa.tdd_patterns is defined) else [] %}{% set patterns = sa_patterns if value_json.tech == 'NR5G-SA' else nsa_patterns %}{% if patterns | length > 0 %}{% set ns = namespace(parts=[]) %}{% for p in patterns %}{% set ns.parts = ns.parts + ['P' ~ (p.pattern_index + 1) ~ ': ' ~ p.periodicity ~ ' (DL: ' ~ p.dl_slots ~ '/' ~ p.dl_symbols ~ ', UL: ' ~ p.ul_slots ~ '/' ~ p.ul_symbols ~ ')'] %}{% endfor %}{{ ns.parts | join(' | ') }}{% else %}N/A{% endif %}",
 	})
 
 	slog.Info("Published Home Assistant auto discovery configurations", "device_id", deviceId)

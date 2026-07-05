@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -95,10 +96,10 @@ func TestDecodeSMSField(t *testing.T) {
 func TestSMSList_ParseResponse_UCS2(t *testing.T) {
 	parser := &SMSList{}
 	resp := []string{
-		`+CMGL: 2,"REC READ","7477457383658472734571",,"26/07/03,12:55:35+22"`,
-		`0068007400740070`,
-		`+CMGL: 13,"REC READ","+911234567890",,"26/07/05,18:19:43+22"`,
-		`D83EDD70`,
+		`+CMGL: 2,1,,34`,
+		`00040bd1ca662b390d5291c9d611000862703021555322080068007400740070`,
+		`+CMGL: 13,1,,24`,
+		`00040c9119214365870900086270508191342204d83edd70`,
 	}
 
 	parser.ParseResponse(nil, nil, resp, "")
@@ -126,16 +127,14 @@ func TestSMSList_ParseResponse_Concatenation(t *testing.T) {
 	part3 := "part3"
 
 	resp := []string{
-		// Different timestamps but within 5 seconds -> should merge because previous segments are full (67 chars)
-		`+CMGL: 2,"REC READ","JM-ISATHI-G",,"26/07/03,12:55:35+22"`,
-		part1,
-		`+CMGL: 3,"REC READ","JM-ISATHI-G",,"26/07/03,12:55:36+22"`,
-		part2,
-		`+CMGL: 4,"REC READ","JM-ISATHI-G",,"26/07/03,12:55:38+22"`,
-		part3,
-		// Different timestamp far apart (> 5 seconds) -> should NOT merge
-		`+CMGL: 5,"REC READ","JM-ISATHI-G",,"26/07/03,12:56:00+22"`,
-		`separate`,
+		`+CMGL: 2,1,,151`,
+		`00440bd1ca662b390d5291c9d6110008627030215553228c0500032a03010061003100320033003400350036003700380039003000310032003300340035003600370038003900300031003200330034003500360037003800390030003100320033003400350036003700380039003000310032003300340035003600370038003900300031003200330034003500360037003800390030003100320033003400350036`,
+		`+CMGL: 3,1,,151`,
+		`00440bd1ca662b390d5291c9d6110008627030215563228c0500032a03020062003100320033003400350036003700380039003000310032003300340035003600370038003900300031003200330034003500360037003800390030003100320033003400350036003700380039003000310032003300340035003600370038003900300031003200330034003500360037003800390030003100320033003400350036`,
+		`+CMGL: 4,1,,48`,
+		`00440bd1ca662b390d5291c9d611000862703021558322100500032a030300700061007200740033`,
+		`+CMGL: 5,1,,34`,
+		`00040bd1ca662b390d5291c9d61100006270302165002208f3323c2c0fd3cb`,
 	}
 
 	parser.ParseResponse(nil, nil, resp, "")
@@ -166,11 +165,10 @@ func TestSMSList_ParseResponse_Concatenation(t *testing.T) {
 func TestSMSList_ParseResponse_Separate(t *testing.T) {
 	parser := &SMSList{}
 	resp := []string{
-		// Two separate short messages (not full segment capacity) sent within 2 seconds -> should NOT merge
-		`+CMGL: 6,"REC READ","JM-ISATHI-G",,"26/07/03,12:55:35+22"`,
-		`Short msg 1`,
-		`+CMGL: 7,"REC READ","JM-ISATHI-G",,"26/07/03,12:55:37+22"`,
-		`Short msg 2`,
+		`+CMGL: 6,1,,37`,
+		`00040bd1ca662b390d5291c9d6110000627030215553220b53f45b4e07b5e767500c`,
+		`+CMGL: 7,1,,37`,
+		`00040bd1ca662b390d5291c9d6110000627030215573220b53f45b4e07b5e767900c`,
 	}
 
 	parser.ParseResponse(nil, nil, resp, "")
@@ -238,5 +236,68 @@ func TestDeleteSMS(t *testing.T) {
 	expectedCmds2 := []string{"AT+CMGD=5"}
 	if len(conn.executedCmds) != 1 || conn.executedCmds[0] != expectedCmds2[0] {
 		t.Errorf("unexpected executed commands: %v", conn.executedCmds)
+	}
+}
+
+func TestUserPDUs(t *testing.T) {
+	parser := &SMSList{}
+	resp := []string{
+		`+CMGL: 0,1,,23`,
+		`0791199999999989040C9119999999999900006260722131152204F4F29C0E`,
+		`+CMGL: 1,1,,22`,
+		`0791199999999989040C9119999999999900006260823293842203E8F71A`,
+		`+CMGL: 2,1,,163`,
+		`0891191907127005534014D0CA662B390D5291C9D6110008627030215553228C050003A504010D280D3F0D190D4D0D190D330D410D1F0D4600200D2A0D470D300D3F0D7D00200D0E0D240D4D0D3000200D380D3F0D0200200D150D3E0D7C0D210D410D150D7E00200D090D230D4D0D1F0D460D280D4D0D280D4D00200D050D310D3F0D2F0D3E0D7B00200D060D170D4D0D300D390D3F0D150D4D0D150D410D280D4D0D280D410D230D4D0D1F`,
+	}
+
+	parser.ParseResponse(nil, nil, resp, "")
+
+	if len(parser.SMS) != 3 {
+		t.Fatalf("expected 3 SMS messages, got %d", len(parser.SMS))
+	}
+
+	m0 := parser.SMS[0] // Index 2
+	if m0.Index != 2 || m0.Sender != "JM-ISATHI-G" || m0.Date != "26/07/03,12:55:35+22" {
+		t.Errorf("unexpected message at index 0: %+v", m0)
+	}
+	if !strings.HasPrefix(m0.Content, "നിങ്ങളുടെ പേരിൽ എത്ര സിം കാർഡുകൾ ഉണ്ടെന്ന് ") {
+		t.Errorf("unexpected Malayalam decoded text: %q", m0.Content)
+	}
+
+	m1 := parser.SMS[1] // Index 1
+	if m1.Index != 1 || m1.Sender != "+919999999999" || m1.Date != "26/06/28,23:39:48+22" {
+		t.Errorf("unexpected message at index 1: %+v", m1)
+	}
+
+	m2 := parser.SMS[2] // Index 0
+	if m2.Index != 0 || m2.Sender != "+919999999999" || m2.Date != "26/06/27,12:13:51+22" || m2.Content != "test" {
+		t.Errorf("unexpected message at index 2: %+v", m2)
+	}
+}
+
+func TestParseSMSList(t *testing.T) {
+	resp := []string{
+		`+CMGL: 1,0,,24`,
+		`00040a9121436587090000626052329595220cc8329bfd065ddf72363904`,
+		`+CMGL: 2,1,,70`,
+		`000406d1c7f7fbcc2e030000626062005000223cd9775d0eb297e569737a1ca6a7df6ed0f84d2e83d273504c36a3d56c2e45920e4acf41f6303b4d0699df72500dd44ebbebf4f2dc05`,
+		`OK`,
+	}
+
+	smsList := &SMSList{}
+	smsList.ParseResponse(nil, nil, resp, "")
+	messages := smsList.SMS
+
+	if len(messages) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(messages))
+	}
+
+	expectedContent2 := "Your verification code is 123456.\nIt is valid for 5 minutes."
+	if messages[0].Index != 2 || messages[0].Status != "REC READ" || messages[0].Sender != "Google" || messages[0].Date != "26/06/26,00:05:00+22" || messages[0].Content != expectedContent2 {
+		t.Errorf("unexpected message 1: %+v", messages[0])
+	}
+
+	if messages[1].Index != 1 || messages[1].Status != "REC UNREAD" || messages[1].Sender != "+1234567890" || messages[1].Date != "26/06/25,23:59:59+22" || messages[1].Content != "Hello World!" {
+		t.Errorf("unexpected message 2: %+v", messages[1])
 	}
 }

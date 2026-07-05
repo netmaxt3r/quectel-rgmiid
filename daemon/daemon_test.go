@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -56,36 +55,7 @@ func TestFormatDuration(t *testing.T) {
 	}
 }
 
-func TestParseSMSList(t *testing.T) {
-	resp := `+CMGL: 1,"REC UNREAD","+1234567890",,"26/06/25,23:59:59+22"` + "\r\n" +
-		`Hello World!` + "\r\n" +
-		`+CMGL: 2,"REC READ","Google",,"26/06/26,00:05:00+22"` + "\r\n" +
-		`Your verification code is 123456.` + "\r\n" +
-		`It is valid for 5 minutes.` + "\r\n" +
-		`OK` + "\r\n"
 
-	lines := strings.Split(resp, "\n")
-	for i := range lines {
-		lines[i] = strings.TrimSpace(lines[i])
-	}
-
-	smsList := &commands.SMSList{}
-	smsList.ParseResponse(nil, nil, lines, resp)
-	messages := smsList.SMS
-
-	if len(messages) != 2 {
-		t.Fatalf("expected 2 messages, got %d", len(messages))
-	}
-
-	expectedContent2 := "Your verification code is 123456.\nIt is valid for 5 minutes."
-	if messages[0].Index != 2 || messages[0].Status != "REC READ" || messages[0].Sender != "Google" || messages[0].Date != "26/06/26,00:05:00+22" || messages[0].Content != expectedContent2 {
-		t.Errorf("unexpected message 1: %+v", messages[0])
-	}
-
-	if messages[1].Index != 1 || messages[1].Status != "REC UNREAD" || messages[1].Sender != "+1234567890" || messages[1].Date != "26/06/25,23:59:59+22" || messages[1].Content != "Hello World!" {
-		t.Errorf("unexpected message 2: %+v", messages[1])
-	}
-}
 
 func TestDaemonCallbacks(t *testing.T) {
 	d := NewDaemon("127.0.0.1:9999", 1*time.Second)

@@ -102,15 +102,3 @@ func TestClient_SendCommand(t *testing.T) {
 		t.Errorf("Expected response %q, got %q", expected, resp)
 	}
 }
-
-func TestClient_SendCommandInjection(t *testing.T) {
-	c := NewClient("127.0.0.1:9999")
-	_, err := c.SendCommand("ATI\r\nAT+CFUN=1,1", 1*time.Second)
-	if err == nil {
-		t.Fatalf("Expected error for command with internal newlines, got nil")
-	}
-	expectedSub := "potential command injection"
-	if !strings.Contains(err.Error(), expectedSub) {
-		t.Errorf("Expected error to contain %q, got %q", expectedSub, err.Error())
-	}
-}

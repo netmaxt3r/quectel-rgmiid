@@ -291,11 +291,11 @@ func (d *Daemon) PollSMSOnly() {
 
 // DeleteSMS deletes an SMS message by its index.
 func (d *Daemon) DeleteSMS(index int) error {
-	_, err := d.SendCommand(fmt.Sprintf("AT+CMGD=%d", index))
-	if err != nil {
-		return fmt.Errorf("failed to delete SMS index %d: %w", index, err)
-	}
-	return nil
+	d.statusMutex.RLock()
+	smsList := d.status.SMS
+	d.statusMutex.RUnlock()
+
+	return commands.DeleteSMS(d, index, smsList)
 }
 
 // SendSMS sends an SMS message via the modem.

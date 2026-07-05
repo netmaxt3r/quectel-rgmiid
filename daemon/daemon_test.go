@@ -77,12 +77,12 @@ func TestParseSMSList(t *testing.T) {
 		t.Fatalf("expected 2 messages, got %d", len(messages))
 	}
 
-	if messages[0].Index != 1 || messages[0].Status != "REC UNREAD" || messages[0].Sender != "+1234567890" || messages[0].Date != "26/06/25,23:59:59+22" || messages[0].Content != "Hello World!" {
+	expectedContent2 := "Your verification code is 123456.\nIt is valid for 5 minutes."
+	if messages[0].Index != 2 || messages[0].Status != "REC READ" || messages[0].Sender != "Google" || messages[0].Date != "26/06/26,00:05:00+22" || messages[0].Content != expectedContent2 {
 		t.Errorf("unexpected message 1: %+v", messages[0])
 	}
 
-	expectedContent2 := "Your verification code is 123456.\nIt is valid for 5 minutes."
-	if messages[1].Index != 2 || messages[1].Status != "REC READ" || messages[1].Sender != "Google" || messages[1].Date != "26/06/26,00:05:00+22" || messages[1].Content != expectedContent2 {
+	if messages[1].Index != 1 || messages[1].Status != "REC UNREAD" || messages[1].Sender != "+1234567890" || messages[1].Date != "26/06/25,23:59:59+22" || messages[1].Content != "Hello World!" {
 		t.Errorf("unexpected message 2: %+v", messages[1])
 	}
 }

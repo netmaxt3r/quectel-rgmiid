@@ -65,31 +65,40 @@ type ModemDaemon interface {
 
 // Server coordinates routing HTTP requests.
 type Server struct {
-	daemon      ModemDaemon
-	modemAddr   string
-	authUser    string
-	authPass    string
-	apiKey      string
-	sessions    map[string]time.Time
-	sessMutex   sync.RWMutex
-	jsonHandler RequestHandler
-	htmxHandler RequestHandler
-	httpServer  *http.Server
+	daemon          ModemDaemon
+	modemAddr       string
+	authUser        string
+	authPass        string
+	apiKey          string
+	sessions        map[string]time.Time
+	sessMutex       sync.RWMutex
+	jsonHandler     RequestHandler
+	htmxHandler     RequestHandler
+	httpServer      *http.Server
+	sessionDuration time.Duration
 }
 
 // NewServer creates a new HTTP dashboard server.
 func NewServer(daemon ModemDaemon, modemAddr, authUser, authPass, apiKey string) *Server {
 	s := &Server{
-		daemon:    daemon,
-		modemAddr: modemAddr,
-		authUser:  authUser,
-		authPass:  authPass,
-		apiKey:    apiKey,
-		sessions:  make(map[string]time.Time),
+		daemon:          daemon,
+		modemAddr:       modemAddr,
+		authUser:        authUser,
+		authPass:        authPass,
+		apiKey:          apiKey,
+		sessions:        make(map[string]time.Time),
+		sessionDuration: 24 * time.Hour,
 	}
 	s.jsonHandler = NewJSONHandler(s)
 	s.htmxHandler = NewHTMXHandler(s)
 	return s
+}
+
+// SetSessionDuration overrides the default session duration.
+func (s *Server) SetSessionDuration(d time.Duration) {
+	s.sessMutex.Lock()
+	defer s.sessMutex.Unlock()
+	s.sessionDuration = d
 }
 
 // Start registers handlers and binds to the specified port.

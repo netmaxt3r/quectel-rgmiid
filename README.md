@@ -19,16 +19,19 @@ Options can be set via CLI flags or mapped to environment variables. CLI flags a
 | :--- | :--- | :--- | :--- |
 | `-modem` | `MODEM_ADDR` | `"192.168.225.1:1555"` | Modem TCP AT interface address (`IP:port`) |
 | `-port` | `PORT` | `"8080"` | Port to bind the web server to |
-| `-interval` | `POLL_INTERVAL` | `5` | Background stats polling interval in seconds |
+| `-interval` | `POLL_INTERVAL` | `10` | Background stats polling interval in seconds |
 | `-user` | `AUTH_USER` | `""` (disabled) | Web Session Auth Username |
 | `-pass` | `AUTH_PASS` | `""` (disabled) | Web Session Auth Password |
 | `-key` | `AUTH_KEY` | `""` (disabled) | Static API Key for external tools (e.g. scripts/curl) |
+| `-session-duration` | `SESSION_DURATION` | `"24h"` | Web session duration (standard Go duration format, e.g. `"24h"`, `"1h30m"`) |
 | `-mqtt-server` | `MQTT_SERVER` | `""` (disabled) | MQTT Broker Server URL (e.g., `tcp://10.24.23.6:1883`) |
 | `-mqtt-user` | `MQTT_USER` | `""` | MQTT connection username |
 | `-mqtt-pass` | `MQTT_PASS` | `""` | MQTT connection password |
 | `-mqtt-topic` | `MQTT_TOPIC` | `"rgmii"` | MQTT base topic for status updates |
 | `-mqtt-discovery` | `MQTT_DISCOVERY` | `true` | Enable Home Assistant MQTT Auto Discovery |
 | `-mqtt-discovery-prefix` | `MQTT_DISCOVERY_PREFIX` | `"homeassistant"` | Home Assistant discovery prefix |
+| `-log-format` | `LOG_FORMAT` | `"text"` | Log format (`text` or `json`) |
+| `-ati-debug` | `ATI_DEBUG` | `false` | Log all raw AT commands and responses in real time |
 | N/A | `QUECTEL_DEBUG` | `""` (disabled) | Set to `1` to enable the `/api/debug` JSON endpoint |
 
 ---

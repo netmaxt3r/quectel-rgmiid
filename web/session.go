@@ -12,7 +12,6 @@ import (
 )
 
 const sessionCookieName = "rgmii_session"
-const sessionDuration = 24 * time.Hour
 
 func generateSessionID() (string, error) {
 	b := make([]byte, 32)
@@ -66,7 +65,7 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) (string, 
 	}
 
 	s.sessMutex.Lock()
-	s.sessions[sessionID] = time.Now().Add(sessionDuration)
+	s.sessions[sessionID] = time.Now().Add(s.sessionDuration)
 	s.sessMutex.Unlock()
 
 	secure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
@@ -75,7 +74,7 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) (string, 
 		Name:     sessionCookieName,
 		Value:    sessionID,
 		Path:     "/",
-		Expires:  time.Now().Add(sessionDuration),
+		Expires:  time.Now().Add(s.sessionDuration),
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteStrictMode,

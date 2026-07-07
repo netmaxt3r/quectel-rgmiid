@@ -23,6 +23,7 @@ func main() {
 	authUser := flag.String("user", getEnv("AUTH_USER", ""), "Web Auth Username (default: disabled)")
 	authPass := flag.String("pass", getEnv("AUTH_PASS", ""), "Web Auth Password (default: disabled)")
 	apiKey := flag.String("key", getEnv("AUTH_KEY", ""), "Static API Key for external tools (default: disabled)")
+	sessionDuration := flag.Duration("session-duration", getEnvDuration("SESSION_DURATION", 24*time.Hour), "Web session duration")
 
 	mqttServer := flag.String("mqtt-server", getEnv("MQTT_SERVER", ""), "MQTT Broker Server URL (e.g. tcp://192.168.1.10:1883) (default: disabled)")
 	mqttUser := flag.String("mqtt-user", getEnv("MQTT_USER", ""), "MQTT Username (default: empty)")
@@ -139,6 +140,7 @@ func main() {
 
 	// Start web dashboard
 	srv := web.NewServer(d, *modemAddr, *authUser, *authPass, *apiKey)
+	srv.SetSessionDuration(*sessionDuration)
 	go func() {
 		if err := srv.Start(*webPort); err != nil && err.Error() != "http: Server closed" {
 			slog.Error("Web server crashed", "error", err)
@@ -185,6 +187,15 @@ func getEnvInt(key string, fallback int) int {
 func getEnvBool(key string, fallback bool) bool {
 	if valStr, ok := os.LookupEnv(key); ok {
 		if val, err := strconv.ParseBool(valStr); err == nil {
+			return val
+		}
+	}
+	return fallback
+}
+
+func getEnvDuration(key string, fallback time.Duration) time.Duration {
+	if valStr, ok := os.LookupEnv(key); ok {
+		if val, err := time.ParseDuration(valStr); err == nil {
 			return val
 		}
 	}

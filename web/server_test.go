@@ -597,3 +597,53 @@ func TestLoginLogout(t *testing.T) {
 		}
 	})
 }
+
+func TestSessionDurationCustomization(t *testing.T) {
+	s := NewServer(nil, "", "admin", "password", "")
+	customDuration := 5 * time.Hour
+	s.SetSessionDuration(customDuration)
+
+	if s.sessionDuration != customDuration {
+		t.Errorf("expected session duration to be %v, got %v", customDuration, s.sessionDuration)
+	}
+
+	req := httptest.NewRequest("POST", "/login", nil)
+	rec := httptest.NewRecorder()
+
+	sessID, err := s.createSession(rec, req)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	s.sessMutex.RLock()
+	expiry, exists := s.sessions[sessID]
+	s.sessMutex.RUnlock()
+
+	if !exists {
+		t.Fatalf("expected session to exist in sessions map")
+	}
+
+	expectedExpiryMin := time.Now().Add(customDuration - 5*time.Second)
+	expectedExpiryMax := time.Now().Add(customDuration + 5*time.Second)
+	if expiry.Before(expectedExpiryMin) || expiry.After(expectedExpiryMax) {
+		t.Errorf("session expiry %v not in expected range [%v, %v]", expiry, expectedExpiryMin, expectedExpiryMax)
+	}
+
+	cookies := rec.Result().Cookies()
+	var sessionCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == sessionCookieName {
+			sessionCookie = c
+			break
+		}
+	}
+
+	if sessionCookie == nil {
+		t.Fatalf("expected session cookie, got none")
+	}
+
+	if sessionCookie.Expires.Before(expectedExpiryMin) || sessionCookie.Expires.After(expectedExpiryMax) {
+		t.Errorf("cookie expiry %v not in expected range [%v, %v]", sessionCookie.Expires, expectedExpiryMin, expectedExpiryMax)
+	}
+}
+

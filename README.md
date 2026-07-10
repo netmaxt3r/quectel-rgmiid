@@ -9,6 +9,8 @@ A lightweight Go daemon and web-based dashboard designed to connect to the Quect
 - **AT Command Console**: Run raw AT commands on the modem directly from the web panel, or programmatically via a JSON endpoint.
 - **Diagnostic Endpoint**: Optional `/api/debug` diagnostic status endpoint.
 
+For screenshots and a detailed walkthrough of all sections, see [SCREENSHOTS.md](SCREENSHOTS.md).
+
 ---
 
 ## Configuration Options

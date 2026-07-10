@@ -24,6 +24,7 @@ func main() {
 	authPass := flag.String("pass", getEnv("AUTH_PASS", ""), "Web Auth Password (default: disabled)")
 	apiKey := flag.String("key", getEnv("AUTH_KEY", ""), "Static API Key for external tools (default: disabled)")
 	sessionDuration := flag.Duration("session-duration", getEnvDuration("SESSION_DURATION", 24*time.Hour), "Web session duration")
+	dataDir := flag.String("data-dir", getEnv("DATA_DIR", "."), "Data directory for persistent files (e.g. sessions.json)")
 
 	mqttServer := flag.String("mqtt-server", getEnv("MQTT_SERVER", ""), "MQTT Broker Server URL (e.g. tcp://192.168.1.10:1883) (default: disabled)")
 	mqttUser := flag.String("mqtt-user", getEnv("MQTT_USER", ""), "MQTT Username (default: empty)")
@@ -141,6 +142,9 @@ func main() {
 	// Start web dashboard
 	srv := web.NewServer(d, *modemAddr, *authUser, *authPass, *apiKey)
 	srv.SetSessionDuration(*sessionDuration)
+	if *dataDir != "" {
+		srv.SetDataDir(*dataDir)
+	}
 	go func() {
 		if err := srv.Start(*webPort); err != nil && err.Error() != "http: Server closed" {
 			slog.Error("Web server crashed", "error", err)

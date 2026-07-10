@@ -5,8 +5,12 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -67,6 +71,7 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) (string, 
 	s.sessMutex.Lock()
 	s.sessions[sessionID] = time.Now().Add(s.sessionDuration)
 	s.sessMutex.Unlock()
+	s.saveSessions()
 
 	secure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 
@@ -90,6 +95,7 @@ func (s *Server) destroySession(w http.ResponseWriter, r *http.Request) {
 		s.sessMutex.Lock()
 		delete(s.sessions, cookie.Value)
 		s.sessMutex.Unlock()
+		s.saveSessions()
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -142,6 +148,7 @@ func (s *Server) isSessionValid(r *http.Request) bool {
 		s.sessMutex.Lock()
 		delete(s.sessions, cookie.Value)
 		s.sessMutex.Unlock()
+		s.saveSessions()
 		return false
 	}
 
@@ -196,3 +203,79 @@ func (s *Server) csrfProtect(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func (s *Server) loadSessions() {
+	if s.dataDir == "" {
+		return
+	}
+
+	sessionFilePath := filepath.Join(s.dataDir, "sessions.json")
+	data, err := os.ReadFile(sessionFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return // Normal if first run / no sessions yet
+		}
+		slog.Error("Failed to read sessions file", "path", sessionFilePath, "error", err)
+		return
+	}
+
+	var loadedSessions map[string]time.Time
+	if err := json.Unmarshal(data, &loadedSessions); err != nil {
+		slog.Error("Failed to unmarshal sessions", "path", sessionFilePath, "error", err)
+		return
+	}
+
+	s.sessMutex.Lock()
+	defer s.sessMutex.Unlock()
+
+	now := time.Now()
+	loadedCount := 0
+	for id, expiry := range loadedSessions {
+		if expiry.After(now) {
+			s.sessions[id] = expiry
+			loadedCount++
+		}
+	}
+
+	if loadedCount > 0 {
+		slog.Info("Successfully loaded sessions from file", "path", sessionFilePath, "count", loadedCount)
+	}
+}
+
+func (s *Server) saveSessions() {
+	if s.dataDir == "" {
+		return
+	}
+
+	sessionFilePath := filepath.Join(s.dataDir, "sessions.json")
+
+	// Ensure the parent directory exists
+	if err := os.MkdirAll(s.dataDir, 0755); err != nil {
+		slog.Error("Failed to create data directory", "path", s.dataDir, "error", err)
+		return
+	}
+
+	s.saveMutex.Lock()
+	defer s.saveMutex.Unlock()
+
+	s.sessMutex.RLock()
+	data, err := json.Marshal(s.sessions)
+	s.sessMutex.RUnlock()
+
+	if err != nil {
+		slog.Error("Failed to marshal sessions", "error", err)
+		return
+	}
+
+	tmpFile := sessionFilePath + ".tmp"
+	if err := os.WriteFile(tmpFile, data, 0600); err != nil {
+		slog.Error("Failed to write temporary session file", "path", tmpFile, "error", err)
+		return
+	}
+
+	if err := os.Rename(tmpFile, sessionFilePath); err != nil {
+		slog.Error("Failed to rename temporary session file", "from", tmpFile, "to", sessionFilePath, "error", err)
+		_ = os.Remove(tmpFile)
+	}
+}
+

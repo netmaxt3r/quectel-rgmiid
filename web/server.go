@@ -72,10 +72,12 @@ type Server struct {
 	apiKey          string
 	sessions        map[string]time.Time
 	sessMutex       sync.RWMutex
+	saveMutex       sync.Mutex
 	jsonHandler     RequestHandler
 	htmxHandler     RequestHandler
 	httpServer      *http.Server
 	sessionDuration time.Duration
+	dataDir         string
 }
 
 // NewServer creates a new HTTP dashboard server.
@@ -101,11 +103,22 @@ func (s *Server) SetSessionDuration(d time.Duration) {
 	s.sessionDuration = d
 }
 
+// SetDataDir overrides the default data directory.
+func (s *Server) SetDataDir(path string) {
+	s.sessMutex.Lock()
+	defer s.sessMutex.Unlock()
+	s.dataDir = path
+}
+
 // Start registers handlers and binds to the specified port.
 func (s *Server) Start(port string) error {
 	mux := http.NewServeMux()
 	s.routes(mux)
 	slog.Info("Starting web control panel", "url", "http://localhost:"+port)
+
+	if s.dataDir != "" {
+		s.loadSessions()
+	}
 
 	s.httpServer = &http.Server{
 		Addr:              ":" + port,
@@ -156,6 +169,7 @@ func (s *Server) startSessionCleanup(stopChan <-chan struct{}) {
 			s.sessMutex.Unlock()
 			if expired > 0 {
 				slog.Debug("Cleaned up expired sessions", "count", expired)
+				s.saveSessions()
 			}
 		}
 	}

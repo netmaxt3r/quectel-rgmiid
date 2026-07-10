@@ -24,6 +24,7 @@ Options can be set via CLI flags or mapped to environment variables. CLI flags a
 | `-pass` | `AUTH_PASS` | `""` (disabled) | Web Session Auth Password |
 | `-key` | `AUTH_KEY` | `""` (disabled) | Static API Key for external tools (e.g. scripts/curl) |
 | `-session-duration` | `SESSION_DURATION` | `"24h"` | Web session duration (standard Go duration format, e.g. `"24h"`, `"1h30m"`) |
+| `-data-dir` | `DATA_DIR` | `"."` | Data directory for persistent files (active sessions are saved to `sessions.json` inside this folder; set to `""` to disable persistence) |
 | `-mqtt-server` | `MQTT_SERVER` | `""` (disabled) | MQTT Broker Server URL (e.g., `tcp://10.24.23.6:1883`) |
 | `-mqtt-user` | `MQTT_USER` | `""` | MQTT connection username |
 | `-mqtt-pass` | `MQTT_PASS` | `""` | MQTT connection password |
@@ -101,11 +102,12 @@ Pre-built Docker/Podman container images are available on the GitHub Container R
 
 ### Run Pre-built Image
 
-Run the container, binding port 8080:
+Run the container, binding port 8080 and persisting data (like web sessions) to a local directory or volume:
 
 ```bash
 docker run -d \
   -p 8080:8080 \
+  -v /path/to/data:/data \
   --name rgmii_control \
   ghcr.io/netmaxt3r/quectel-rgmiid:latest
 ```
@@ -115,6 +117,7 @@ Pass customized arguments or environment variables to the container:
 ```bash
 docker run -d \
   -p 9090:9090 \
+  -v /path/to/data:/data \
   -e PORT=9090 \
   -e AUTH_USER=admin \
   -e AUTH_PASS=secret \

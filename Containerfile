@@ -48,6 +48,10 @@ COPY --from=builder /app/rgmii_daemon .
 # Expose default HTTP web server port
 EXPOSE 8080
 ENV QUECTEL_DEBUG="0"
+ENV DATA_DIR="/data"
+
+# Declare volume for persistent data
+VOLUME ["/data"]
 
 # Run the daemon
 ENTRYPOINT ["/app/rgmii_daemon"]

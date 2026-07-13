@@ -301,3 +301,40 @@ func TestParseSMSList(t *testing.T) {
 		t.Errorf("unexpected message 2: %+v", messages[1])
 	}
 }
+
+func TestSMSList_ParseResponse_SortingOrder(t *testing.T) {
+	parser := &SMSList{}
+	// Feed them in a completely non-chronological order of date and index:
+	// 1. Index 1: middle date (26/06/28,23:39:48+22)
+	// 2. Index 2: newest date (26/07/03,12:55:35+22)
+	// 3. Index 0: oldest date (26/06/27,12:13:51+22)
+	resp := []string{
+		`+CMGL: 1,1,,22`,
+		`0791199999999989040C9119999999999900006260823293842203E8F71A`,
+		`+CMGL: 2,1,,163`,
+		`0891191907127005534014D0CA662B390D5291C9D6110008627030215553228C050003A504010D280D3F0D190D4D0D190D330D410D1F0D4600200D2A0D470D300D3F0D7D00200D0E0D240D4D0D3000200D380D3F0D0200200D150D3E0D7C0D210D410D150D7E00200D090D230D4D0D1F0D460D280D4D0D280D4D00200D050D310D3F0D2F0D3E0D7B00200D060D170D4D0D300D390D3F0D150D4D0D150D410D280D4D0D280D410D230D4D0D1F`,
+		`+CMGL: 0,1,,23`,
+		`0791199999999989040C9119999999999900006260722131152204F4F29C0E`,
+	}
+
+	parser.ParseResponse(nil, nil, resp, "")
+
+	if len(parser.SMS) != 3 {
+		t.Fatalf("expected 3 SMS messages, got %d", len(parser.SMS))
+	}
+
+	// Should be sorted by date descending (newest first):
+	// 1st: Index 2 (2026-07-03)
+	// 2nd: Index 1 (2026-06-28)
+	// 3rd: Index 0 (2026-06-27)
+	if parser.SMS[0].Index != 2 {
+		t.Errorf("expected 1st message to be Index 2, got Index %d", parser.SMS[0].Index)
+	}
+	if parser.SMS[1].Index != 1 {
+		t.Errorf("expected 2nd message to be Index 1, got Index %d", parser.SMS[1].Index)
+	}
+	if parser.SMS[2].Index != 0 {
+		t.Errorf("expected 3rd message to be Index 0, got Index %d", parser.SMS[2].Index)
+	}
+}
+

@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -107,10 +108,24 @@ func (s *SMSList) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp [
 		s.SMS = merged
 	}
 
-	// Reverse the SMS slice to show them in descending order (newest/highest index first)
-	for i, j := 0, len(s.SMS)-1; i < j; i, j = i+1, j-1 {
-		s.SMS[i], s.SMS[j] = s.SMS[j], s.SMS[i]
-	}
+	// Sort the SMS slice in descending order by date (newest first).
+	// If parsing fails, fall back to index descending.
+	sort.SliceStable(s.SMS, func(i, j int) bool {
+		t1, err1 := parseSMSDate(s.SMS[i].Date)
+		t2, err2 := parseSMSDate(s.SMS[j].Date)
+		if err1 == nil && err2 == nil {
+			return t1.After(t2)
+		}
+		// If only one fails, put the valid date first (newest)
+		if err1 == nil {
+			return true
+		}
+		if err2 == nil {
+			return false
+		}
+		// If both fail, fallback to index descending
+		return s.SMS[i].Index > s.SMS[j].Index
+	})
 }
 
 // DeleteSMS deletes an SMS message by its index (including all merged segments if it's a concatenated message).

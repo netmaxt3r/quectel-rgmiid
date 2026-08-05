@@ -42,6 +42,20 @@ var (
 			}
 			return builder.String()
 		},
+		"formatSMSDate": func(dateStr string) string {
+			s := strings.TrimSpace(dateStr)
+			if len(s) == 0 {
+				return s
+			}
+			if len(s) > 17 && (s[len(s)-3] == '+' || s[len(s)-3] == '-') {
+				s = s[:len(s)-3]
+			}
+			t, err := time.Parse("06/01/02,15:04:05", s)
+			if err != nil {
+				return dateStr
+			}
+			return t.Format("02/01/2006 15:04:05")
+		},
 	}).ParseFS(webFS, "templates/index.html", "templates/status.html", "templates/sms.html", "templates/console.html", "templates/login.html", "templates/settings.html", "templates/dynconfig.html"))
 )
 

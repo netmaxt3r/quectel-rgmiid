@@ -100,7 +100,7 @@
 
                     <!-- Action Buttons: Reply & Delete -->
                     <div class="flex items-center gap-2">
-                        <span class="text-xs text-slate-500 font-mono">{{ .Date }}</span>
+                        <span class="text-xs text-slate-500 font-mono">{{ formatSMSDate .Date }}</span>
                         <button onclick="replyTo('{{ .Sender }}')"
                             class="opacity-100 sm:opacity-0 sm:group-hover/sms:opacity-100 transition-opacity duration-200 ml-2 px-2.5 py-1 text-[11px] font-semibold rounded bg-cyan-500/10 hover:bg-cyan-500/20 active:scale-95 text-cyan-400 border border-cyan-500/20 transition flex items-center gap-1">
                             <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

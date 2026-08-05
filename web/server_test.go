@@ -647,3 +647,31 @@ func TestSessionDurationCustomization(t *testing.T) {
 	}
 }
 
+func TestFormatSMSDateInHTMX(t *testing.T) {
+	status := commands.ModemStatus{
+		SMSList: commands.SMSList{
+			SMS: []commands.SMSMessage{
+				{Index: 1, Sender: "+1234567890", Date: "26/07/03,12:55:35+22", Content: "Test message"},
+			},
+		},
+	}
+	d := &mockDaemon{Status: status}
+	s := NewServer(d, "", "", "", "")
+	mux := http.NewServeMux()
+	s.routes(mux)
+
+	req := httptest.NewRequest("GET", "/api/sms", nil)
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	expectedFormattedDate := "03/07/2026 12:55:35"
+	if !strings.Contains(body, expectedFormattedDate) {
+		t.Errorf("expected rendered HTML to contain formatted date %q, got: %s", expectedFormattedDate, body)
+	}
+}
+

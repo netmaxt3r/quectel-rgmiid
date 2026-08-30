@@ -1,10 +1,8 @@
 package web
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/hex"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -13,17 +11,13 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"uuid"
 )
 
 const sessionCookieName = "rgmii_session"
 
-func generateSessionID() (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
+func generateSessionID() string {
+	return uuid.NewV4().String()
 }
 
 func checkSameOrigin(r *http.Request) bool {
@@ -63,10 +57,7 @@ func (s *Server) authenticate(username, password string) bool {
 
 // createSession generates a session ID, stores it, and sets the session cookie.
 func (s *Server) createSession(w http.ResponseWriter, r *http.Request) (string, error) {
-	sessionID, err := generateSessionID()
-	if err != nil {
-		return "", err
-	}
+	sessionID := generateSessionID()
 
 	s.sessMutex.Lock()
 	s.sessions[sessionID] = time.Now().Add(s.sessionDuration)
@@ -278,4 +269,3 @@ func (s *Server) saveSessions() {
 		_ = os.Remove(tmpFile)
 	}
 }
-

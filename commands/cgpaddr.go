@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 )
 
@@ -34,10 +35,8 @@ func (c *CGPADDR) ParseResponse(ctx *ParsingContext, status *ModemStatus, resp [
 }
 
 func appendUnique(slice []string, val string) []string {
-	for _, item := range slice {
-		if item == val {
-			return slice
-		}
+	if slices.Contains(slice, val) {
+		return slice
 	}
 	return append(slice, val)
 }

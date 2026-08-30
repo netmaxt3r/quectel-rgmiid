@@ -83,8 +83,10 @@ func main() {
 		u, err := url.Parse(*mqttServer)
 		if err == nil && u.User != nil {
 			if _, hasPass := u.User.Password(); hasPass {
-				u.User = url.UserPassword(u.User.Username(), "xxxxx")
-				logServer = u.String()
+				sanitized := u.Clone()
+				// mask pwd
+				sanitized.User = url.UserPassword(u.User.Username(), "xxxxx")
+				logServer = sanitized.String()
 			}
 		}
 		slog.Info("MQTT service status",

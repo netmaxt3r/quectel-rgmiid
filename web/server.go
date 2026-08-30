@@ -47,8 +47,10 @@ var (
 			if len(s) == 0 {
 				return s
 			}
-			if len(s) > 17 && (s[len(s)-3] == '+' || s[len(s)-3] == '-') {
-				s = s[:len(s)-3]
+			if before, _, found := strings.CutLast(s, "+"); found && len(before) == 17 {
+				s = before
+			} else if before, _, found := strings.CutLast(s, "-"); found && len(before) == 17 {
+				s = before
 			}
 			t, err := time.Parse("06/01/02,15:04:05", s)
 			if err != nil {

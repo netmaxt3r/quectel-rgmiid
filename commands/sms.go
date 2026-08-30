@@ -451,7 +451,7 @@ func decodeAddress(b []byte, length int, toa byte) (string, int, error) {
 	var byteLen int
 	if isAlphanumeric {
 		if length <= 11 {
-			byteLen = (length * 7 + 7) / 8
+			byteLen = (length*7 + 7) / 8
 		} else {
 			byteLen = (length + 1) / 2
 		}
@@ -544,7 +544,7 @@ func decodeUserData(udBytes []byte, udl int, dcs byte, udhi bool) (string, error
 	}
 
 	if coding == 0 {
-		byteLen := (udl * 7 + 7) / 8
+		byteLen := (udl*7 + 7) / 8
 		if len(udBytes) < byteLen {
 			byteLen = len(udBytes)
 		}
@@ -552,7 +552,7 @@ func decodeUserData(udBytes []byte, udl int, dcs byte, udhi bool) (string, error
 
 		var startSeptet int
 		if udhi {
-			startSeptet = (udhBytes * 8 + 6) / 7
+			startSeptet = (udhBytes*8 + 6) / 7
 		}
 
 		if startSeptet >= len(septets) {
@@ -980,10 +980,10 @@ func decodeDecimalASCII(s string) string {
 		if idx+1 >= len(s) {
 			return s // remaining digits cannot form a valid ASCII code
 		}
-		
+
 		var code int
 		var consumed int
-		
+
 		firstDigit := s[idx]
 		if firstDigit == '1' {
 			if idx+2 >= len(s) {
@@ -1019,8 +1019,10 @@ func decodeDecimalASCII(s string) string {
 func parseSMSDate(dateStr string) (time.Time, error) {
 	s := strings.TrimSpace(dateStr)
 	// Remove timezone offset if present (e.g., "+22" or "-08" at the end of the string)
-	if len(s) > 17 && (s[len(s)-3] == '+' || s[len(s)-3] == '-') {
-		s = s[:len(s)-3]
+	if before, _, found := strings.CutLast(s, "+"); found && len(before) == 17 {
+		s = before
+	} else if before, _, found := strings.CutLast(s, "-"); found && len(before) == 17 {
+		s = before
 	}
 	return time.Parse("06/01/02,15:04:05", s)
 }

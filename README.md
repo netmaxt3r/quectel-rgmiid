@@ -53,7 +53,7 @@ When MQTT is activated by specifying the `-mqtt-server` URL (or `MQTT_SERVER` en
 
 ### Prerequisites
 
-- [Go 1.26+](https://go.dev/) installed on your machine.
+- [Go 1.27+](https://go.dev/) installed on your machine.
 - [Node.js](https://nodejs.org/) and Yarn (configured with Corepack) to compile stylesheets.
 
 ### Build

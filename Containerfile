@@ -13,7 +13,7 @@ COPY web/templates/ ./web/templates/
 RUN corepack enable && yarn install && yarn build:css
 
 # Stage 2: Build the Go binary
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS builder
 
 WORKDIR /app
 

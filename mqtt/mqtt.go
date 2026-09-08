@@ -142,9 +142,14 @@ func (c *Client) PublishStatus(status commands.ModemStatus) {
 	c.publishState(status)
 }
 
+type mqttStatusPayload struct {
+	commands.ModemStatus
+	SMS any `json:"sms,omitempty"`
+}
+
 func (c *Client) publishState(status commands.ModemStatus) {
 	topic := fmt.Sprintf("%s/status", c.cfg.Topic)
-	bytes, err := json.Marshal(status)
+	bytes, err := json.Marshal(mqttStatusPayload{ModemStatus: status})
 	if err != nil {
 		slog.Error("Failed to marshal status for MQTT", "error", err)
 		return
@@ -259,13 +264,13 @@ func (c *Client) publishDiscovery(status commands.ModemStatus) {
 	// 8. IP Address (sensor)
 	pubSensor("sensor", "ip_address", "IP Address", map[string]interface{}{
 		"icon":           "mdi:ip",
-		"value_template": "{{ value_json.ip_address | join(', ') if value_json.ip_address is defined else 'N/A' }}",
+		"value_template": "{{ value_json.ip_address | join(', ') if value_json.ip_address else 'N/A' }}",
 	})
 
 	// 9. IPv6 Address (sensor)
 	pubSensor("sensor", "ipv6_address", "IPv6 Address", map[string]interface{}{
 		"icon":           "mdi:ip",
-		"value_template": "{{ value_json.ipv6_address | join(', ') if value_json.ipv6_address is defined else 'N/A' }}",
+		"value_template": "{{ value_json.ipv6_address | join(', ') if value_json.ipv6_address else 'N/A' }}",
 	})
 
 	// 10. LTE RSRP (sensor)
@@ -350,7 +355,7 @@ func (c *Client) publishDiscovery(status commands.ModemStatus) {
 
 	// 23. MIMO Configuration (sensor)
 	pubSensor("sensor", "mimo_configuration", "MIMO Configuration", map[string]interface{}{
-		"icon": "mdi:antenna",
+		"icon":           "mdi:antenna",
 		"value_template": "{% if value_json.tech == 'LTE' and value_json.service.lte is defined %}{{ value_json.service.lte.mimo_layers }}{% elif value_json.tech == 'NR5G-SA' and value_json.service.nr5g_sa is defined %}{{ value_json.service.nr5g_sa.mimo_layers }}{% elif value_json.tech == '5G NSA' and value_json.service.nr5g_nsa is defined %}LTE: {{ value_json.service.lte.mimo_layers if value_json.service.lte is defined else 'Unknown' }} | 5G: {{ value_json.service.nr5g_nsa.mimo_layers }}{% else %}N/A{% endif %}",
 	})
 

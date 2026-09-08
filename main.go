@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -37,12 +40,7 @@ func main() {
 
 	flag.Parse()
 
-	if *pollInterval <= 0 {
-		slog.Error("Invalid poll interval configured (must be greater than 0)", "interval", *pollInterval)
-		os.Exit(1)
-	}
-
-	// Initialize slog to write to stdout and display local time (respecting TZ)
+	// Initialize slog before logging any errors or warnings
 	logLevel := slog.LevelInfo
 	if *atiDebug {
 		logLevel = slog.LevelDebug
@@ -64,6 +62,22 @@ func main() {
 	}
 	slog.SetDefault(slog.New(handler))
 
+	// Configuration validation
+	if *pollInterval <= 0 {
+		slog.Error("Invalid poll interval configured (must be greater than 0)", "interval", *pollInterval)
+		os.Exit(1)
+	}
+
+	if *sessionDuration <= 0 {
+		slog.Error("Invalid session duration configured (must be greater than 0)", "duration", *sessionDuration)
+		os.Exit(1)
+	}
+
+	if (*authUser != "" && *authPass == "") || (*authUser == "" && *authPass != "") {
+		slog.Error("Incomplete web authentication credentials configured; both -user and -pass must be provided")
+		os.Exit(1)
+	}
+
 	slog.Info("Starting Quectel RGMII Daemon")
 	slog.Info("Configuration",
 		"modem_addr", *modemAddr,
@@ -81,10 +95,12 @@ func main() {
 	if *mqttServer != "" {
 		logServer := *mqttServer
 		u, err := url.Parse(*mqttServer)
-		if err == nil && u.User != nil {
+		if err != nil {
+			logServer = "[REDACTED_INVALID_URL]"
+		} else if u.User != nil {
 			if _, hasPass := u.User.Password(); hasPass {
 				sanitized := u.Clone()
-				// mask pwd
+				// Mask password in logs
 				sanitized.User = url.UserPassword(u.User.Username(), "xxxxx")
 				logServer = sanitized.String()
 			}
@@ -100,13 +116,13 @@ func main() {
 		slog.Info("MQTT service status", "enabled", false)
 	}
 
+	// Create cancellable context tied to SIGINT and SIGTERM for graceful daemon shutdown
+	ctx, stopSignal := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignal()
+
 	// Initialize daemon
 	d := daemon.NewDaemon(*modemAddr, time.Duration(*pollInterval)*time.Second)
 	d.SetATIDebug(*atiDebug)
-
-	// Create cancelable context for graceful daemon shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Configure MQTT if active
 	var mqttClient *mqtt.Client
@@ -134,12 +150,13 @@ func main() {
 		d.OnStatusUpdate(mqttClient.PublishStatus)
 	}
 
-	// Start background poller
-	go d.Start(ctx)
-
-	// Intercept terminate/interrupt signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	// Start background poller with WaitGroup tracking
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		d.Start(ctx)
+	}()
 
 	// Start web dashboard
 	srv := web.NewServer(d, *modemAddr, *authUser, *authPass, *apiKey)
@@ -147,17 +164,18 @@ func main() {
 	if *dataDir != "" {
 		srv.SetDataDir(*dataDir)
 	}
+
 	go func() {
-		if err := srv.Start(*webPort); err != nil && err.Error() != "http: Server closed" {
+		if err := srv.Start(*webPort); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Web server crashed", "error", err)
-			sigChan <- syscall.SIGTERM
+			stopSignal()
 		}
 	}()
 
-	<-sigChan
+	// Wait until termination signal or server crash
+	<-ctx.Done()
 
 	slog.Info("Shutting down gracefully...")
-	cancel()
 
 	// Gracefully shut down the HTTP server with a deadline
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -165,6 +183,9 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("HTTP server shutdown error", "error", err)
 	}
+
+	// Wait for daemon polling goroutine to stop cleanly
+	wg.Wait()
 
 	if mqttClient != nil {
 		slog.Info("Disconnecting MQTT client...")
@@ -175,14 +196,14 @@ func main() {
 }
 
 func getEnv(key, fallback string) string {
-	if val, ok := os.LookupEnv(key); ok {
+	if val, ok := os.LookupEnv(key); ok && val != "" {
 		return val
 	}
 	return fallback
 }
 
 func getEnvInt(key string, fallback int) int {
-	if valStr, ok := os.LookupEnv(key); ok {
+	if valStr, ok := os.LookupEnv(key); ok && valStr != "" {
 		if val, err := strconv.Atoi(valStr); err == nil {
 			return val
 		}
@@ -191,7 +212,7 @@ func getEnvInt(key string, fallback int) int {
 }
 
 func getEnvBool(key string, fallback bool) bool {
-	if valStr, ok := os.LookupEnv(key); ok {
+	if valStr, ok := os.LookupEnv(key); ok && valStr != "" {
 		if val, err := strconv.ParseBool(valStr); err == nil {
 			return val
 		}
@@ -200,7 +221,7 @@ func getEnvBool(key string, fallback bool) bool {
 }
 
 func getEnvDuration(key string, fallback time.Duration) time.Duration {
-	if valStr, ok := os.LookupEnv(key); ok {
+	if valStr, ok := os.LookupEnv(key); ok && valStr != "" {
 		if val, err := time.ParseDuration(valStr); err == nil {
 			return val
 		}

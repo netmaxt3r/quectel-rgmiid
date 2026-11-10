@@ -9,7 +9,7 @@
                 <h2 class="text-md font-semibold tracking-wide text-slate-200">Interactive AT Console</h2>
             </div>
             <button onclick="clearConsole()"
-                class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800/80 px-2.5 py-1 rounded border border-white/5">
+                class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800/80 px-2.5 py-1 rounded-sm border border-white/5">
                 Clear Output
             </button>
         </div>
@@ -27,7 +27,7 @@
             hx-on::after-request="if(!event.detail.xhr.getResponseHeader('X-Cmd-Failed')) { this.reset(); }; scrollTerminalBottom()" class="flex gap-2">
             <input type="text" name="cmd" id="cmd-input" placeholder="Enter AT command (e.g. ATI)" required
                 autocomplete="off"
-                class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition placeholder-slate-500">
+                class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm text-slate-200 focus:outline-hidden focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition placeholder-slate-500">
             <button type="submit"
                 class="px-5 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:scale-95 transition font-medium text-sm flex items-center justify-center">
                 Send
@@ -38,17 +38,17 @@
         <div class="mt-4 flex flex-wrap gap-1.5 items-center">
             <span class="text-xs text-slate-500 mr-1.5">Common:</span>
             <button type="button" onclick="fillCommand('ATI')"
-                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">ATI</button>
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded-sm">ATI</button>
             <button type="button" onclick="fillCommand('AT+CSQ')"
-                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+CSQ</button>
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded-sm">AT+CSQ</button>
             <button type="button" onclick="fillCommand('AT+COPS?')"
-                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+COPS?</button>
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded-sm">AT+COPS?</button>
             <button type="button" onclick="fillCommand('AT+QCAINFO')"
-                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+QCAINFO</button>
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded-sm">AT+QCAINFO</button>
             <button type="button" onclick="fillCommand('AT+QENG=&quot;servingcell&quot;')"
-                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">AT+QENG?</button>
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded-sm">AT+QENG?</button>
             <button type="button" onclick="fillCommand('AT+QNWCFG=&quot;csi_ctrl&quot;,1,1')"
-                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded">Enable
+                class="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 px-2 py-0.5 rounded-sm">Enable
                 CSI</button>
         </div>
 

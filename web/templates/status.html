@@ -52,23 +52,23 @@
         <div class="flex items-end gap-1.5 h-12">
             <!-- Bar 1 (0-20%) -->
             <div
-                class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 10 }}h-1/5 bg-cyan-500{{ else }}h-1/5 bg-slate-800{{ end }}">
+                class="flex-1 rounded-xs transition-all duration-300 {{ if ge .SignalPercentage 10 }}h-1/5 bg-cyan-500{{ else }}h-1/5 bg-slate-800{{ end }}">
             </div>
             <!-- Bar 2 (21-40%) -->
             <div
-                class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 30 }}h-2/5 bg-cyan-500{{ else }}h-2/5 bg-slate-800{{ end }}">
+                class="flex-1 rounded-xs transition-all duration-300 {{ if ge .SignalPercentage 30 }}h-2/5 bg-cyan-500{{ else }}h-2/5 bg-slate-800{{ end }}">
             </div>
             <!-- Bar 3 (41-60%) -->
             <div
-                class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 55 }}h-3/5 bg-cyan-500{{ else }}h-3/5 bg-slate-800{{ end }}">
+                class="flex-1 rounded-xs transition-all duration-300 {{ if ge .SignalPercentage 55 }}h-3/5 bg-cyan-500{{ else }}h-3/5 bg-slate-800{{ end }}">
             </div>
             <!-- Bar 4 (61-80%) -->
             <div
-                class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 75 }}h-4/5 bg-cyan-500{{ else }}h-4/5 bg-slate-800{{ end }}">
+                class="flex-1 rounded-xs transition-all duration-300 {{ if ge .SignalPercentage 75 }}h-4/5 bg-cyan-500{{ else }}h-4/5 bg-slate-800{{ end }}">
             </div>
             <!-- Bar 5 (81-100%) -->
             <div
-                class="flex-1 rounded-sm transition-all duration-300 {{ if ge .SignalPercentage 90 }}h-full bg-cyan-500{{ else }}h-full bg-slate-800{{ end }}">
+                class="flex-1 rounded-xs transition-all duration-300 {{ if ge .SignalPercentage 90 }}h-full bg-cyan-500{{ else }}h-full bg-slate-800{{ end }}">
             </div>
         </div>
     </div>
@@ -114,7 +114,7 @@
         <div class="flex items-center justify-between">
             <span class="text-sm text-slate-400">Radio Technology</span>
             <span
-                class="px-2.5 py-0.5 text-xs font-bold font-mono rounded bg-indigo-500/15 border border-indigo-500/35 text-indigo-300 uppercase">
+                class="px-2.5 py-0.5 text-xs font-bold font-mono rounded-sm bg-indigo-500/15 border border-indigo-500/35 text-indigo-300 uppercase">
                 {{ if .Tech }}{{ .Tech }}{{ else }}Scanning...{{ end }}
             </span>
         </div>
@@ -314,7 +314,7 @@
                         <div class="bg-slate-950/40 rounded-xl p-3 border border-white/5 flex flex-col gap-1.5 text-xs">
                             <div class="flex justify-between items-center pb-1 border-b border-white/5 font-semibold text-cyan-400">
                                 <span>Pattern {{ add .PatternIndex 1 }}</span>
-                                <span class="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{{ .Periodicity }}</span>
+                                <span class="bg-slate-800 px-1.5 py-0.5 rounded-sm text-[10px] text-slate-300">{{ .Periodicity }}</span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-slate-400">DL Slots / Symbols</span>
@@ -437,7 +437,7 @@
                         <div class="bg-slate-950/40 rounded-xl p-3 border border-white/5 flex flex-col gap-1.5 text-xs">
                             <div class="flex justify-between items-center pb-1 border-b border-white/5 font-semibold text-cyan-400">
                                 <span>Pattern {{ add .PatternIndex 1 }}</span>
-                                <span class="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{{ .Periodicity }}</span>
+                                <span class="bg-slate-800 px-1.5 py-0.5 rounded-sm text-[10px] text-slate-300">{{ .Periodicity }}</span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-slate-400">DL Slots / Symbols</span>

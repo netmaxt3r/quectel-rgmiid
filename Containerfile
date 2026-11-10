@@ -5,7 +5,6 @@ WORKDIR /app
 
 # Copy package config files
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY tailwind.config.js ./
 COPY web/static/css/input.css ./web/static/css/
 COPY web/templates/ ./web/templates/
 

@@ -264,6 +264,25 @@ func TestJSONHandlerRoutes(t *testing.T) {
 		}
 	})
 
+	t.Run("Radio Reset  success", func(t *testing.T) {
+		d := &mockDaemon{SendCommandResp: "OK"}
+		s := NewServer(d, "", "", "", "")
+		mux := http.NewServeMux()
+		s.routes(mux)
+
+		req := httptest.NewRequest("POST", "/api/modem/radio_reset", nil)
+		req.Header.Set("Accept", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+		if len(d.SendCommandCalls) != 2 || d.SendCommandCalls[0] != "AT+CFUN=0" || d.SendCommandCalls[1] != "AT+CFUN=1" {
+			t.Errorf("expected SendCommand with 'AT+CFUN=0' and 'AT+CFUN=1', got: %+v", d.SendCommandCalls)
+		}
+	})
+
 	t.Run("Cmd wrong method", func(t *testing.T) {
 		s := NewServer(nil, "", "", "", "")
 		mux := http.NewServeMux()

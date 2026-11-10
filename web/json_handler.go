@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"rgmii/commands"
 )
@@ -229,6 +230,21 @@ func (h *JSONHandler) HandleModemRestart(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	h.writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "Modem restart initiated"})
+}
+
+func (h *JSONHandler) HandleRadioReset(w http.ResponseWriter, r *http.Request) {
+	_, err := h.server.daemon.SendCommand("AT+CFUN=0")
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, fmt.Sprintf("AT+CFUN=0 failed: %v", err))
+		return
+	}
+	time.Sleep(5 * time.Second)
+	_, err = h.server.daemon.SendCommand("AT+CFUN=1")
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, fmt.Sprintf("AT+CFUN=1 failed: %v", err))
+		return
+	}
+	h.writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "Radio reset ok"})
 }
 
 func (h *JSONHandler) HandleSettingsPage(w http.ResponseWriter, r *http.Request) {

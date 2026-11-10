@@ -215,6 +215,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	//Status
 	apiMux.HandleFunc("GET /api/status", s.dispatch(RequestHandler.HandleStatus))
 	apiMux.HandleFunc("POST /api/modem/restart", s.dispatch(RequestHandler.HandleModemRestart))
+	apiMux.HandleFunc("POST /api/modem/radio_reset", s.dispatch(RequestHandler.HandleRadioReset))
 
 	// SMS
 	apiMux.HandleFunc("GET /api/sms", s.dispatch(RequestHandler.HandleSMSGet))

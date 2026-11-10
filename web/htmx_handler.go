@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"rgmii/commands"
 )
@@ -232,6 +233,23 @@ func (h *HTMXHandler) HandleModemRestart(w http.ResponseWriter, r *http.Request)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte("<span class=\"text-emerald-400 font-medium\">Modem restart command (AT+CFUN=1,1) executed successfully. Modem is rebooting.</span>"))
+}
+
+func (h *HTMXHandler) HandleRadioReset(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Received request to reset radio, sending AT+CFUN=0")
+	_, err := h.server.daemon.SendCommand("AT+CFUN=0")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("AT+CFUN=0 failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+	time.Sleep(5 * time.Second)
+	_, err = h.server.daemon.SendCommand("AT+CFUN=1")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("AT+CFUN=1 failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<span class=\"text-emerald-400 font-medium\">Radio restart command executed successfully</span>"))
 }
 
 func (h *HTMXHandler) HandleSettingsPage(w http.ResponseWriter, r *http.Request) {

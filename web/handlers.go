@@ -18,6 +18,7 @@ type RequestHandler interface {
 	HandleSMSSend(w http.ResponseWriter, r *http.Request)
 	HandleSMSDelete(w http.ResponseWriter, r *http.Request)
 	HandleModemRestart(w http.ResponseWriter, r *http.Request)
+	HandleRadioReset(w http.ResponseWriter, r *http.Request)
 	HandleSettingsPage(w http.ResponseWriter, r *http.Request)
 	HandleConsole(w http.ResponseWriter, r *http.Request)
 	HandleDebug(w http.ResponseWriter, r *http.Request)

@@ -139,6 +139,26 @@ func TestHTMXHandlerRoutes(t *testing.T) {
 		}
 	})
 
+	t.Run("Radio Reset HTMX success", func(t *testing.T) {
+		d := &mockDaemon{SendCommandResp: "OK"}
+		s := NewServer(d, "", "", "", "")
+		mux := http.NewServeMux()
+		s.routes(mux)
+
+		req := httptest.NewRequest("POST", "/api/modem/radio_reset", nil)
+		req.Header.Set("HX-Request", "true")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "Radio Reset failed") && !strings.Contains(body, "executed successfully") {
+			t.Errorf("expected success output, got %q", body)
+		}
+	})
+
 	t.Run("Settings page HTML success", func(t *testing.T) {
 		d := &mockDaemon{}
 		s := NewServer(d, "", "", "", "")
